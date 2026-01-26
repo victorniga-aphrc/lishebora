@@ -15,6 +15,12 @@ class Settings:
     # Optional: model identifier / version for Replicate vision or OCR model.
     # Defaults to OpenAI GPT-4.1 mini hosted on Replicate.
     replicate_model: str = os.getenv("REPLICATE_MODEL", "openai/gpt-4.1-mini")
+    
+    # Database settings
+    database_url: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql://postgres@localhost:5432/lishebora"
+    )
 
 
 @lru_cache(maxsize=1)

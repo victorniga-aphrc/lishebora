@@ -1,7 +1,10 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import Depends, FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
+from sqlalchemy.orm import Session
 
+from app.db import get_db
 from app.models import OcrResult
+from app.services.db_service import save_ocr_result_to_db
 from app.services.ocr_client import OcrClientError, extract_ingredients_from_image
 
 
@@ -69,13 +72,17 @@ async def index() -> str:
 
 
 @app.post("/extract", response_model=OcrResult)
-async def extract(image: UploadFile = File(...)) -> OcrResult:
+async def extract(
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> OcrResult:
     """
-    Accept an image upload and return a structured OCR result.
-
-    For now, this is wired to a stubbed OCR client. Once the Replicate-based
-    ingredient extraction is implemented, this endpoint stays the same and the
-    service logic can be swapped underneath.
+    Accept an image upload, extract data, save to database, and return structured OCR result.
+    
+    The extracted data is automatically saved to the database for:
+    - Product caching (avoid re-scanning same products)
+    - Analytics and research
+    - Historical tracking
     """
     if not image.content_type or not image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Only image files are accepted.")
@@ -83,6 +90,24 @@ async def extract(image: UploadFile = File(...)) -> OcrResult:
     try:
         image_bytes = await image.read()
         result = await extract_ingredients_from_image(image_bytes)
+        
+        # Save to database
+        try:
+            product, scan = save_ocr_result_to_db(
+                db=db,
+                ocr_result=result,
+                user_id=None,  # TODO: Add authentication
+                location=None,  # TODO: Extract from request if available
+                image_path=None,  # TODO: Save image to storage if needed
+            )
+            # Optionally add database IDs to response
+            # result.product_id = product.id
+            # result.scan_id = scan.id
+        except Exception as db_exc:
+            # Log database error but don't fail the request
+            # The OCR extraction was successful, so we still return the result
+            print(f"Warning: Failed to save to database: {db_exc}")
+        
         return result
     except OcrClientError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

@@ -40,7 +40,9 @@ Thumbs.db
 # Notebooks (optional – remove if you want them in git)
 *.ipynb_checkpoints/
 
-# Markdown project docs – keep only README.md in git
+# Markdown project docs – keep only README.md and important docs in git
 *.md
 !README.md
+!DOCKER_SETUP.md
+!DATABASE_SETUP.md
 

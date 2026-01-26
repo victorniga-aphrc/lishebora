@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Documentation (keep README.md)
+*.md
+!README.md
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Test files
+test_*.py
+*_test.py
+tests/
+.pytest_cache/
+
+# Jupyter
+notebooks/
+*.ipynb
+.ipynb_checkpoints/
+
+# Data
+ingredient_image_data/
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scripts
+*.sh
+
+# Concept/docs
+concept/
+backend_technical_plan.md
+git_workflow.md
+STEP3_DESIGN.md
+
+# Alembic versions (will be generated in container if needed)
+# Keep alembic.ini and alembic/env.py, but ignore versions for now
+# alembic/versions/
