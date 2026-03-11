@@ -1,0 +1,2 @@
+# Shell scripts: always LF so they run in WSL/Linux (avoid CRLF from Windows)
+*.sh text eol=lf

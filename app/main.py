@@ -22,11 +22,13 @@ async def index() -> str:
         <title>Lishebora OCR Demo</title>
         <style>
           body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 2rem; }
-          .container { max-width: 720px; margin: 0 auto; }
+          .container { max-width: 820px; margin: 0 auto; }
           .card { border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(15,23,42,0.08); }
           h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
           p { color: #4b5563; margin-bottom: 1rem; }
-          input[type="file"] { margin: 1rem 0; }
+          .input-group { margin: 1rem 0; display: flex; flex-direction: column; gap: 0.5rem; }
+          label { font-weight: 500; color: #111827; }
+          input[type="file"] { padding: 0.25rem 0; }
           button { background-color: #2563eb; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; }
           button:hover { background-color: #1d4ed8; }
           pre { background: #0f172a; color: #e5e7eb; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
@@ -36,10 +38,22 @@ async def index() -> str:
         <div class="container">
           <div class="card">
             <h1>Lishebora OCR Demo</h1>
-            <p>Upload a food label image (from file or camera) to extract a structured list of ingredients.</p>
+            <p>Upload a food label image (from file) or capture one using your device camera to extract a structured list of ingredients and nutrition data.</p>
             <form id="upload-form">
-              <input type="file" name="image" accept="image/*" capture="environment" required />
-              <br />
+              <div class="input-group">
+                <label for="file-input">Option 1: Upload from files</label>
+                <input id="file-input" type="file" name="file_image" accept="image/*" />
+              </div>
+              <div class="input-group">
+                <label for="camera-input">Option 2: Capture from camera (mobile devices)</label>
+                <input
+                  id="camera-input"
+                  type="file"
+                  name="camera_image"
+                  accept="image/*"
+                  capture="environment"
+                />
+              </div>
               <button type="submit">Upload and Extract</button>
             </form>
             <h2>Structured Output</h2>
@@ -49,10 +63,26 @@ async def index() -> str:
         <script>
           const form = document.getElementById("upload-form");
           const resultEl = document.getElementById("result");
+          const fileInput = document.getElementById("file-input");
+          const cameraInput = document.getElementById("camera-input");
 
           form.addEventListener("submit", async (event) => {
             event.preventDefault();
-            const formData = new FormData(form);
+            const formData = new FormData();
+
+            // Prefer camera image if provided, otherwise fall back to file upload
+            const cameraFile = cameraInput.files[0];
+            const file = fileInput.files[0];
+
+            if (cameraFile) {
+              formData.append("image", cameraFile);
+            } else if (file) {
+              formData.append("image", file);
+            } else {
+              resultEl.textContent = "Please select or capture an image first.";
+              return;
+            }
+
             resultEl.textContent = "Processing...";
             try {
               const response = await fetch("/extract", {

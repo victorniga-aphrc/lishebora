@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import io
 import json
+import base64
 from functools import partial
 from typing import Any, List
 
 import anyio
-import replicate
+from openai import OpenAI
 
 from app.config import settings
 from app.models import (
@@ -197,11 +197,11 @@ def _parse_ingredients_from_model_text(text: str) -> List[Ingredient]:
 
 async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
     """
-    Core OCR entry point using GPT-4.1-mini via Replicate.
+    Core OCR entry point using GPT-4.1-mini via OpenAI directly.
 
     - Accepts raw image bytes.
-    - Sends them to the Replicate-hosted `openai/gpt-4.1-mini` model with the
-      image passed as an `image_input` file.
+    - Sends them to OpenAI's vision-capable GPT-4.1-mini model with the image
+      passed as an inline base64 data URL.
     - Asks the model to return a strict JSON structure with ingredients,
       nutrition facts, product info, and extraction metadata.
     - Parses the response into our internal `OcrResult` model.
@@ -209,9 +209,9 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
     if not image_bytes:
         raise OcrClientError("Empty image payload")
 
-    if not settings.replicate_api_token:
+    if not settings.openai_api_key:
         raise OcrClientError(
-            "REPLICATE_API_TOKEN is not set in the environment. "
+            "OPENAI_API_KEY is not set in the environment. "
             "Please add it to your .env file."
         )
 
@@ -244,47 +244,48 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
         "- Return ONLY JSON, no explanations or commentary"
     )
 
-    # Prepare image as a file-like object for Replicate.
-    image_file = io.BytesIO(image_bytes)
-    image_file.name = "label.jpg"
+    # Encode image as base64 data URL for OpenAI vision model
+    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+    image_data_url = f"data:image/jpeg;base64,{image_b64}"
 
-    # For OpenAI models hosted on Replicate we use `prompt` + `system_prompt`
-    # rather than the `messages` array to avoid the "messages: empty array"
-    # validation issues.
-    inputs: dict[str, Any] = {
-        "prompt": (
-            "Extract all information from this food label image and return ONLY "
-            "a JSON object with the keys 'ingredients', 'nutrition_per_100g', "
-            "'product_info', 'raw_text', and 'extraction_metadata' as previously described."
-        ),
-        "system_prompt": system_prompt,
-        "image_input": [image_file],
-        "temperature": 0.1,
-        "max_completion_tokens": 1024,  # Increased for nutrition facts
-    }
+    user_prompt = (
+        "Extract all information from this food label image and return ONLY "
+        "a JSON object with the keys 'ingredients', 'nutrition_per_100g', "
+        "'product_info', 'raw_text', and 'extraction_metadata' as previously described."
+    )
 
-    model_identifier = settings.replicate_model
+    client = OpenAI(api_key=settings.openai_api_key)
 
-    # Initialize Replicate client with API token
-    client = replicate.Client(api_token=settings.replicate_api_token)
+    async def _run_openai() -> str:
+        # OpenAI client is synchronous; run it in a worker thread
+        def _call() -> str:
+            response = client.chat.completions.create(
+                model=settings.openai_model,
+                temperature=0.1,
+                max_tokens=1024,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": user_prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": image_data_url},
+                            },
+                        ],
+                    },
+                ],
+            )
+            # We expect a single text choice
+            return response.choices[0].message.content or ""
 
-    # Replicate's Python client is synchronous; run it in a worker thread so
-    # we do not block the event loop.
-    # Use functools.partial to bind the arguments since run_sync doesn't accept kwargs directly
+        return await anyio.to_thread.run_sync(_call)
+
     try:
-        run_model = partial(client.run, model_identifier, input=inputs)
-        output = await anyio.to_thread.run_sync(run_model)
+        text_response = await _run_openai()
     except Exception as exc:  # pragma: no cover - defensive
-        raise OcrClientError(f"Error calling Replicate API: {exc}") from exc
-
-    # Replicate chat models typically return either a string or a list of
-    # string chunks. Normalise to a single text string.
-    if isinstance(output, str):
-        text_response = output
-    elif isinstance(output, list):
-        text_response = "".join(str(part) for part in output)
-    else:
-        text_response = str(output)
+        raise OcrClientError(f"Error calling OpenAI API: {exc}") from exc
 
     # Clean and parse the response
     cleaned_response = _clean_response_text(text_response)

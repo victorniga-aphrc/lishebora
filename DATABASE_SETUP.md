@@ -12,6 +12,131 @@ This guide explains how to set up and use the PostgreSQL database for the Lisheb
 
 This guide is for reference or setting up on a new machine.
 
+---
+
+## Database setup on EC2 (Amazon Linux)
+
+Use these steps when the app is deployed on an EC2 instance (e.g. after `./aws/deploy-aws-ssm.sh`) and you want PostgreSQL on the same instance.
+
+### 1. Install PostgreSQL
+
+On the instance (via EC2 Instance Connect or SSM Session Manager), run:
+
+```bash
+sudo amazon-linux-extras enable postgresql14
+sudo yum install -y postgresql-server postgresql
+```
+
+**Amazon Linux 2023**: use `sudo dnf install -y postgresql15 postgresql15-server`, then `sudo postgresql-setup --initdb` and `sudo systemctl start postgresql`.
+
+### 2. Initialize (if needed) and start PostgreSQL
+
+If the data directory is **empty** (first install):
+
+```bash
+sudo postgresql-setup initdb
+```
+
+If you see **"Data directory ... is not empty"**, skip initdb—PostgreSQL is already initialized. Just start and enable the service:
+
+```bash
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+```
+
+Check that it’s running:
+
+```bash
+sudo systemctl status postgresql
+```
+
+If the service name is different (e.g. `postgresql-14`), list units: `systemctl list-units --type=service | grep -i postgres`, then use that name for `start`/`enable`/`status`.
+
+### 3. Set postgres user password and create database
+
+Connect over TCP so password auth is used (required for the app):
+
+```bash
+# Set a password for the postgres user (choose a strong password in production)
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+
+# Create the lishebora database
+sudo -u postgres psql -c "CREATE DATABASE lishebora;"
+```
+
+### 4. Allow password authentication from localhost
+
+Edit the PostgreSQL config:
+
+```bash
+sudo sed -i 's/^host.*all.*all.*127.0.0.1\/32.*$/host    all             all             127.0.0.1\/32            scram-sha-256/' /var/lib/pgsql/data/pg_hba.conf
+```
+
+If that line doesn’t exist or is different, open the file and ensure you have a line like this (and no other line that matches first and uses `ident` or `peer` for 127.0.0.1):
+
+```text
+host    all             all             127.0.0.1/32            scram-sha-256
+```
+
+Then restart PostgreSQL:
+
+```bash
+sudo systemctl restart postgresql
+```
+
+### 5. Test connection
+
+```bash
+psql -h localhost -U postgres -d lishebora -c "SELECT 1;"
+```
+
+If it runs without error, the database is ready.
+
+### 6. Add DATABASE_URL to .env on the instance
+
+You said you already created `.env`. Add or update this line (match the password you set in step 3):
+
+```bash
+sudo nano /opt/lishebora_vic/.env
+```
+
+Add:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lishebora
+```
+
+Save and exit.
+
+### 7. Run migrations (create tables)
+
+From the app directory on the instance:
+
+```bash
+cd /opt/lishebora_vic
+sudo .venv/bin/alembic upgrade head
+```
+
+You should see: `Running upgrade -> 15b732399207, Initial migration`.
+
+### 8. Verify tables
+
+```bash
+psql -h localhost -U postgres -d lishebora -c "\dt"
+```
+
+You should see: `products`, `ingredients`, `product_ingredients`, `nutrition_data`, `scans`.
+
+Then start the app (or restart if it’s already running):
+
+```bash
+cd /opt/lishebora_vic && sudo .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Scans will now be stored in the database.
+
+---
+
 ## Prerequisites
 
 - PostgreSQL installed and running

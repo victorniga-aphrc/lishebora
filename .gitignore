@@ -37,12 +37,16 @@ Thumbs.db
 *.key
 *.pem
 
+# AWS credentials and keys (never commit)
+aws/
+
 # Notebooks (optional – remove if you want them in git)
 *.ipynb_checkpoints/
 
-# Markdown project docs – keep only README.md and important docs in git
+# Markdown project docs – keep only key docs in git
 *.md
 !README.md
 !DOCKER_SETUP.md
 !DATABASE_SETUP.md
+!CHANGELOG.md
 

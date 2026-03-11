@@ -178,6 +178,48 @@ Visit `http://localhost:8000` in your browser to upload a sample image and see t
 
 **Note**: All extracted data is automatically saved to the database for caching, analytics, and research purposes. The database is fully configured with all tables created via Alembic migrations.
 
+#### Access from your phone (same Wi‑Fi)
+
+To use the demo on your phone (e.g. to test camera capture):
+
+1. **Run the server so it accepts external connections**
+   ```bash
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+2. **Confirm the correct IP**
+   - On **Windows** (Command Prompt or PowerShell): run `ipconfig` and note the **IPv4 Address** under your active adapter (e.g. Wi‑Fi or Ethernet). Example: `192.168.150.245`.
+   - That Windows IP is what your phone must use. WSL’s own IP (e.g. `172.x.x.x`) is only visible inside your PC.
+
+3. **If you run the app inside WSL2**: Windows does not forward port 8000 to WSL by default, so `http://192.168.150.245:8000` from your phone may not work until you add a port proxy on **Windows** (run PowerShell **as Administrator**):
+   ```powershell
+   # Get WSL’s IP (run in WSL): hostname -I
+   # Then on Windows (replace 172.20.0.1 with your WSL IPv4 from hostname -I):
+   netsh interface portproxy add v4tov4 listenport=8000 listenaddress=0.0.0.0 connectport=8000 connectaddress=172.20.0.1
+   ```
+   If your WSL IP changes after reboot, run the same command again with the new IP, or remove the rule first:  
+   `netsh interface portproxy delete v4tov4 listenport=8000 listenaddress=0.0.0.0`
+
+4. **Open on your phone** (same Wi‑Fi):  
+   `http://192.168.150.245:8000`  
+   (Use the IPv4 from step 2; 192.168.150.245 is only an example.)
+
+If it still doesn’t load, check Windows Firewall: allow inbound TCP on port 8000 for the app or for “Private” networks.
+
+**Check IP and port from the terminal**
+
+- **Windows (PowerShell)** – see which IP the PC has and whether port 8000 is listening:
+  ```powershell
+  ipconfig | findstr /i "IPv4"
+  netstat -an | findstr "8000"
+  ```
+  Use the IPv4 address shown (e.g. `192.168.150.245`) as the URL on your phone: `http://<that-IP>:8000`. If the only line for 8000 is `127.0.0.1:8000 ... LISTENING`, the app is only accepting local connections; run uvicorn with `--host 0.0.0.0` (and set up the WSL port proxy if you use WSL2).
+- **WSL/Linux** – see the machine’s IP and whether something listens on 8000:
+  ```bash
+  hostname -I
+  ss -tlnp | grep 8000
+  ```
+
 ---
 
 ## 🐳 Docker Setup
@@ -232,6 +274,10 @@ docker-compose up -d --build
 ```
 
 For detailed Docker setup instructions, see [DOCKER_SETUP.md](DOCKER_SETUP.md).
+
+### AWS deployment
+
+AWS-related files (deploy scripts, credentials helpers, and deployment docs) live in the **`aws/`** folder. The **`aws/`** folder is in **`.gitignore`** so credentials and keys are never committed. See `aws/README.md` in that folder for deployment steps (e.g. deploy to an existing EC2 instance).
 
 ---
 
