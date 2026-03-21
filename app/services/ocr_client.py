@@ -15,7 +15,11 @@ from app.models import (
     OcrResult,
     ProductInfo,
 )
+from app.services.classification_consistency import (
+    warning_pos_taxonomy_vs_label_sugar,
+)
 from app.services.knpm_labeller import classify_with_knpm
+from app.services.supermarket_lookup import lookup_supermarket_classification
 
 
 class OcrClientError(Exception):
@@ -369,6 +373,8 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
             warnings.append("Try taking a photo with better lighting")
     
     # Detect trans fats and artificial sweeteners from ingredients
+    has_trans_fats = False
+    has_sweeteners = False
     if ingredients:
         has_trans_fats, has_sweeteners = _detect_trans_fats_and_sweeteners(ingredients)
         if has_trans_fats and nutrition_data:
@@ -390,6 +396,14 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
     if knpm_label.message:
         warnings.append(knpm_label.message)
 
+    supermarket_classification = lookup_supermarket_classification(product_info)
+
+    pos_sugar_mismatch = warning_pos_taxonomy_vs_label_sugar(
+        knpm_label, supermarket_classification
+    )
+    if pos_sugar_mismatch:
+        warnings.append(pos_sugar_mismatch)
+
     return OcrResult(
         ingredients=ingredients,
         nutrition_per_100g=nutrition_data,
@@ -400,6 +414,7 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
         errors=errors,
         model_raw_output={"output": text_response},
         knpm_label=knpm_label,
+        supermarket_classification=supermarket_classification,
     )
 
 

@@ -81,6 +81,13 @@ async def index() -> str:
           }
           .knpm-reason-list { font-size: 0.85rem; color: #4b5563; padding-left: 1rem; }
           .knpm-reason-list li { margin-bottom: 0.25rem; }
+          .pos-card { border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.25rem; background: #f0fdf4; }
+          .pos-header { font-weight: 600; margin-bottom: 0.5rem; }
+          .pos-meta { font-size: 0.9rem; color: #374151; line-height: 1.5; }
+          .pos-meta dt { font-weight: 600; color: #111827; float: left; clear: left; width: 8.5rem; }
+          .pos-meta dd { margin-left: 8.75rem; margin-bottom: 0.35rem; }
+          .pos-none { font-size: 0.9rem; color: #6b7280; }
+          .sidebar-col { display: flex; flex-direction: column; gap: 1rem; }
           @media (max-width: 900px) {
             .container { grid-template-columns: 1fr; }
           }
@@ -111,11 +118,17 @@ async def index() -> str:
             <h2>Structured Output</h2>
             <pre id="result">Waiting for upload...</pre>
           </div>
-          <div class="knpm-card">
-            <div class="knpm-header">KNPM Label (Demo)</div>
-            <div id="knpm-status" class="knpm-status unknown">No scan yet.</div>
-            <div id="knpm-octagons" class="octagon-list"></div>
-            <ul id="knpm-reasons" class="knpm-reason-list"></ul>
+          <div class="sidebar-col">
+            <div class="knpm-card">
+              <div class="knpm-header">KNPM Label (Demo)</div>
+              <div id="knpm-status" class="knpm-status unknown">No scan yet.</div>
+              <div id="knpm-octagons" class="octagon-list"></div>
+              <ul id="knpm-reasons" class="knpm-reason-list"></ul>
+            </div>
+            <div class="pos-card">
+              <div class="pos-header">Supermarket taxonomy (POS)</div>
+              <div id="pos-content" class="pos-none">No scan yet.</div>
+            </div>
           </div>
         </div>
         <script>
@@ -126,12 +139,46 @@ async def index() -> str:
           const knpmStatusEl = document.getElementById("knpm-status");
           const knpmOctagonsEl = document.getElementById("knpm-octagons");
           const knpmReasonsEl = document.getElementById("knpm-reasons");
+          const posContentEl = document.getElementById("pos-content");
 
           function resetKnpmView() {
             knpmStatusEl.textContent = "No KNPM label yet.";
             knpmStatusEl.className = "knpm-status unknown";
             knpmOctagonsEl.innerHTML = "";
             knpmReasonsEl.innerHTML = "";
+          }
+
+          function resetPosView() {
+            posContentEl.className = "pos-none";
+            posContentEl.textContent = "No scan yet.";
+          }
+
+          function renderSupermarketClassification(sc) {
+            if (!sc) {
+              resetPosView();
+              posContentEl.textContent = "No match in supermarket lookup (exact or fuzzy).";
+              return;
+            }
+            posContentEl.className = "pos-meta";
+            const rows = [
+              ["Class", sc.class_name || "—"],
+              ["Subclass", sc.subclass_name || "—"],
+              ["NOVA", sc.nova || "—"],
+              ["Matched description", sc.matched_description || "—"],
+              ["Match method", sc.match_method || "—"],
+              ["Fuzzy score", sc.match_score != null ? String(sc.match_score) : "— (exact)"],
+            ];
+            const dl = document.createElement("dl");
+            rows.forEach(([dt, dd]) => {
+              const dterm = document.createElement("dt");
+              dterm.textContent = dt;
+              const ddef = document.createElement("dd");
+              ddef.textContent = dd;
+              dl.appendChild(dterm);
+              dl.appendChild(ddef);
+            });
+            posContentEl.innerHTML = "";
+            posContentEl.appendChild(dl);
           }
 
           function renderKnpmLabel(knpm) {
@@ -227,6 +274,7 @@ async def index() -> str:
 
             resultEl.textContent = "Processing...";
             resetKnpmView();
+            resetPosView();
             try {
               const response = await fetch("/extract", {
                 method: "POST",
@@ -237,15 +285,18 @@ async def index() -> str:
                 const text = await response.text();
                 resultEl.textContent = "Server error " + response.status + ": " + text;
                 resetKnpmView();
+                resetPosView();
                 return;
               }
 
               const data = await response.json();
               resultEl.textContent = JSON.stringify(data, null, 2);
               renderKnpmLabel(data.knpm_label);
+              renderSupermarketClassification(data.supermarket_classification);
             } catch (err) {
               resultEl.textContent = "Error: " + err;
               resetKnpmView();
+              resetPosView();
             }
           });
         </script>

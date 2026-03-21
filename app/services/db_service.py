@@ -99,7 +99,31 @@ def save_ocr_result_to_db(
             )
             db.add(nutrition_data)
     
-    # Step 4: Create scan record
+    # Step 4: Create scan record (enrich persisted model output with supermarket taxonomy)
+    raw_out = ocr_result.model_raw_output
+    if isinstance(raw_out, dict):
+        merged_raw: dict = {**raw_out}
+    elif raw_out is not None:
+        merged_raw = {"_legacy_model_raw_output": raw_out}
+    else:
+        merged_raw = {}
+    if ocr_result.supermarket_classification is not None:
+        merged_raw["supermarket_classification"] = (
+            ocr_result.supermarket_classification.model_dump()
+        )
+
+    if merged_raw:
+        merged_raw["class_name"] = ocr_result.class_name
+        merged_raw["subclass_name"] = ocr_result.subclass_name
+        final_raw: dict | None = merged_raw
+    elif ocr_result.class_name is not None or ocr_result.subclass_name is not None:
+        final_raw = {
+            "class_name": ocr_result.class_name,
+            "subclass_name": ocr_result.subclass_name,
+        }
+    else:
+        final_raw = None
+
     scan = Scan(
         product_id=product.id,
         user_id=user_id,
@@ -110,7 +134,7 @@ def save_ocr_result_to_db(
         product_name_found=ocr_result.extraction_metadata.product_name_found,
         barcode_found=ocr_result.extraction_metadata.barcode_found,
         raw_text=ocr_result.raw_text,
-        model_raw_output=ocr_result.model_raw_output,
+        model_raw_output=final_raw,
         warnings=ocr_result.warnings,
         errors=ocr_result.errors,
     )

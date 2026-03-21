@@ -1,10 +1,13 @@
 import os
 from functools import lru_cache
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 
 load_dotenv()
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class Settings:
@@ -23,6 +26,21 @@ class Settings:
     database_url: str = os.getenv(
         "DATABASE_URL",
         "postgresql://postgres@localhost:5432/lishebora"
+    )
+
+    # Supermarket POS taxonomy lookup (CSV: description, class_name, subclass_name, nova)
+    supermarket_lookup_csv: Path = Path(
+        os.getenv(
+            "SUPERMARKET_LOOKUP_CSV",
+            str(_REPO_ROOT / "data" / "product_class_subclass_lookup.csv"),
+        )
+    )
+    supermarket_fuzzy_min_score: float = float(
+        os.getenv("SUPERMARKET_FUZZY_MIN_SCORE", "72")
+    )
+    # When OCR category (e.g. "Fruit Drink") is matched to POS subclass/class labels
+    supermarket_taxonomy_fuzzy_min_score: float = float(
+        os.getenv("SUPERMARKET_TAXONOMY_FUZZY_MIN_SCORE", "52")
     )
 
 

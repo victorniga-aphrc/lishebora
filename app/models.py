@@ -1,6 +1,6 @@
-from typing import Any, List
+from typing import Any, List, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Ingredient(BaseModel):
@@ -83,6 +83,32 @@ class ExtractionMetadata(BaseModel):
     )
 
 
+class SupermarketClassification(BaseModel):
+    """
+    Supermarket POS taxonomy for the scanned product.
+
+    Resolution: (1) OCR name/brand vs POS SKU ``description``; (2) if needed, OCR
+    ``category`` vs distinct POS ``subclass_name`` / ``class_name`` (for products
+    not listed verbatim and for healthy-alternative bucketing).
+    """
+
+    class_name: str | None = Field(default=None, description="POS class name")
+    subclass_name: str | None = Field(default=None, description="POS subclass name")
+    nova: str | None = Field(default=None, description="NOVA processing category from POS")
+    matched_description: str | None = Field(
+        default=None,
+        description="Matched POS SKU line, or representative SKU when matched via category→taxonomy",
+    )
+    match_method: str | None = Field(
+        default=None,
+        description="How the match was made, e.g. exact_name, fuzzy_combined",
+    )
+    match_score: float | None = Field(
+        default=None,
+        description="Fuzzy match score (0–100); null for exact SKU matches",
+    )
+
+
 class KnpmLabel(BaseModel):
     """
     KNPM-based classification for a product.
@@ -125,6 +151,14 @@ class OcrResult(BaseModel):
     product_info: ProductInfo | None = Field(
         default=None, description="Product identification information (if available)"
     )
+    class_name: str | None = Field(
+        default=None,
+        description="Supermarket POS class for this scan (mirrors lookup; null if unresolved)",
+    )
+    subclass_name: str | None = Field(
+        default=None,
+        description="Supermarket POS subclass for this scan (mirrors lookup; null if unresolved)",
+    )
     raw_text: str | None = Field(
         default=None,
         description="Raw text extracted from the image (for debugging)",
@@ -154,4 +188,21 @@ class OcrResult(BaseModel):
         default=None,
         description="KNPM-based label and black octagon warnings (if nutrition data is available)",
     )
+    supermarket_classification: SupermarketClassification | None = Field(
+        default=None,
+        description="Full POS lookup result (NOVA, match method, scores). class_name/subclass_name above are copied from here.",
+    )
+
+    @model_validator(mode="after")
+    def _sync_pos_class_subclass_from_lookup(self) -> Self:
+        """Expose POS class/subclass at top level for API JSON (same as supermarket_classification)."""
+        sc = self.supermarket_classification
+        if sc is not None:
+            return self.model_copy(
+                update={
+                    "class_name": sc.class_name,
+                    "subclass_name": sc.subclass_name,
+                }
+            )
+        return self.model_copy(update={"class_name": None, "subclass_name": None})
 

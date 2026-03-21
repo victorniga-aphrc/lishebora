@@ -443,9 +443,10 @@ FastAPI automatically generates interactive API documentation:
    - Validates nutrition values (non-negative, reasonable ranges)
    - Detects trans fats and artificial sweeteners from ingredients
    - Runs **`knpm_labeller.classify_with_knpm()`** to set `knpm_label` (and may append a short message to `warnings`)
+   - Runs **`supermarket_lookup.lookup_supermarket_classification()`** to set `supermarket_classification` from the POS lookup CSV (exact, then fuzzy)
    - Generates warnings/errors for missing data
-5. **Persistence**: `save_ocr_result_to_db()` stores the scan and related rows when the DB is configured
-6. **Structured Output**: Returns `OcrResult` including `knpm_label`, ingredients, nutrition, product info, and metadata
+5. **Persistence**: `save_ocr_result_to_db()` stores the scan and related rows when the DB is configured (merges `supermarket_classification` into `model_raw_output` on the scan)
+6. **Structured Output**: Returns `OcrResult` including `knpm_label`, `supermarket_classification`, ingredients, nutrition, product info, and metadata
 
 ### Prompt Engineering
 
@@ -515,16 +516,21 @@ lishebora_vic/
 │   ├── main.py              # FastAPI app, demo HTML, static /octagon_images
 │   ├── config.py
 │   ├── db.py
-│   ├── models.py            # Pydantic models (OcrResult, KnpmLabel, …)
+│   ├── models.py            # Pydantic models (OcrResult, KnpmLabel, SupermarketClassification, …)
 │   ├── database/
 │   │   └── models.py        # SQLAlchemy tables
 │   └── services/
-│       ├── ocr_client.py    # OpenAI vision + parsing + KNPM hook
-│       ├── knpm_labeller.py # KNPM v1 classification
-│       └── db_service.py    # Persist scans / products / nutrition
+│       ├── ocr_client.py         # OpenAI vision + parsing + KNPM + POS lookup
+│       ├── knpm_labeller.py      # KNPM v1 classification
+│       ├── supermarket_lookup.py # POS class/subclass/NOVA from lookup CSV
+│       └── db_service.py         # Persist scans / products / nutrition
 ├── alembic/                 # Migrations
 ├── octagon_images/          # SVG assets for demo (high sugar/salt/fat)
 ├── ingredient_image_data/   # Sample test images (tracked in git)
+├── data/
+│   ├── huge_data.csv                    # Wide POS export (many columns)
+│   ├── product_class_subclass_lookup.csv # Slim lookup: description → class/subclass/nova
+│   └── all_categories_combined.csv      # Other nutrition/category reference
 ├── notebooks/               # Jupyter notebooks (experimentation)
 ├── docker-compose.yml
 ├── Dockerfile
@@ -540,7 +546,35 @@ lishebora_vic/
 - **`app/services/ocr_client.py`**: OpenAI vision OCR and JSON parsing
 - **`app/services/knpm_labeller.py`**: KNPM-style `knpm_label` generation
 - **`app/models.py`**: `OcrResult`, `KnpmLabel`, nutrition and product models
-- **`app/config.py`**: `OPENAI_*`, `DATABASE_URL`, legacy Replicate vars
+- **`app/config.py`**: `OPENAI_*`, `DATABASE_URL`, `SUPERMARKET_*` lookup paths/scores, legacy Replicate vars
+- **`app/services/supermarket_lookup.py`**: Load lookup CSV; exact + fuzzy match to `supermarket_classification`
+
+### Supermarket product class / subclass (data pipeline)
+
+For KNPM, product **category** often depends on **class** and **subclass** from your supermarket taxonomy (`class_name`, `subclass_name` in `huge_data.csv`).
+
+| File | Purpose |
+|------|--------|
+| `data/huge_data.csv` | Full POS-style export (transactions, pricing, many columns). |
+| **`data/product_class_subclass_lookup.csv`** | **Trimmed reference**: `description`, `class_name`, `subclass_name`, `nova`. Built by stripping **pack sizes** (e.g. 500ML, 1L, 1KG, **200G/**, **35G/**), **piece counts** (**300PCS**, **6PCS**, `(12PCS)`, **65X5PCS**, **4PK**/**8PK**), **/KG**, counts like **10S**/**80S**/**6S**/**14S/**, trailing `5*`, **4/6/8 J/SUPER**, bare **J/SUPER**, empty `( )`, `/ (6S)` after cubes, slash-with-spaces-on-both-sides (without touching **S/BERRY**, **T/BAG**, **G/TOP**), multipacks (**6X300ML**), patterns like `400* V/` and `5*1.6G/`, trailing small **pack counts**, **commas**, **full stops** (including trailing and abbreviation dots like `G.` / `ORIG.` / `BISC.`, but not decimal points in numbers), standalone **`PL`**, **EOT** / **`E O T`**, expansions **`CHOC`→`CHOCOLATE`**, **`BISC`→`BISCUIT`**, removal of **`CT`**, **`M/B`**, **`M/BAK`**, **`M/BAKERS`**, and common pack tokens (PET, BTL, TR, GLASS, CTN, POUCH, …), then **deduplicating** — same logical product in different sizes becomes **one row** (aligned with nutrition per 100g/ml). |
+| `scripts/build_product_classification_lookup.py` | Regenerates the lookup from `huge_data.csv`. Default: strip pack + dedupe. Use `--no-strip-pack` for legacy exact-POS lines only. |
+| `app/utils/pos_description.py` | Shared `normalize_pack_description()` used by the build script and **runtime** `supermarket_lookup` so OCR names with sizes still match. |
+
+**Regenerate lookup**
+
+```bash
+python scripts/build_product_classification_lookup.py
+```
+
+**Choosing a format (CSV vs alternatives)**
+
+- **CSV** — Fine for lookups up to hundreds of thousands of unique descriptions: load once at startup into a `dict` keyed by normalized description, or use **pandas** for fuzzy joins. Easy to edit and diff in Git.
+- **SQLite** — Good when the table grows large or you want SQL (indexes, `LIKE`, joins) without running Postgres migrations for reference data only.
+- **PostgreSQL seed table** — Best if the same lookup must be shared across app instances and updated operationally like other app data.
+
+**Pipeline (implemented)** — After OCR, classification uses `data/product_class_subclass_lookup.csv` in two steps: (1) **Product line** — `product_info.name` (and `brand` + `name`) vs column `description`, after the **same pack-size normalization** as the CSV build (then exact match, then fuzzy **max(WRatio, partial_ratio)**). Cutoff: `SUPERMARKET_FUZZY_MIN_SCORE` (default `72`). (2) **Taxonomy fallback** — if no line hit, `product_info.category` vs distinct POS `subclass_name` / `class_name` (`token_set_ratio`; cutoff `SUPERMARKET_TAXONOMY_FUZZY_MIN_SCORE`, default `52`). Supports **healthy alternatives** (same subclass → suggest fitter SKUs). Results: `OcrResult.supermarket_classification` and top-level `class_name` / `subclass_name`; merged into `Scan.model_raw_output`. Override CSV path with `SUPERMARKET_LOOKUP_CSV`.
+
+**POS vs label (important)** — Retail taxonomy is **not** a nutrition claim. It can disagree with the pack (e.g. SKU matched to “no added sugar” in POS while the label shows high sugar). **KNPM uses the nutrition table**; when POS wording implies no/low added sugar but `knpm_label` includes `HIGH_IN_SUGAR`, the API adds a **`warnings`** entry via `classification_consistency.warning_pos_taxonomy_vs_label_sugar` so clients can explain the mismatch and avoid recommending alternatives purely from the conflicting subclass.
 
 ---
 
@@ -584,12 +618,14 @@ A successful response should contain:
   - Core KNPM nutrients (explicit fields): energy, fats, sugar, sodium, protein, carbs, fiber
   - **`additional_nutrients`**: Dict with all other nutrients found (potassium, calcium, iron, vitamins, etc.)
 - **`product_info`**: Product name, brand, category, barcode (if available)
+- **`class_name`** / **`subclass_name`**: Supermarket POS taxonomy for this scan (top-level; `null` if the product could not be resolved against the lookup CSV). Same values as inside `supermarket_classification` when present.
 - **`extraction_metadata`**: Flags indicating what was found/missing
 - **`warnings`**: Array of warnings about missing or incomplete data
 - **`errors`**: Array of errors that prevent further processing
 - **`raw_text`**: Full text extracted from the label (if available)
 - **`model_raw_output`**: Raw model response for debugging
 - **`knpm_label`**: Classification, octagon codes, reasons, optional `message` when `UNKNOWN`
+- **`supermarket_classification`**: When the OCR product name matches `data/product_class_subclass_lookup.csv`, includes `class_name`, `subclass_name`, `nova`, `matched_description`, `match_method`, and `match_score` (fuzzy only); otherwise `null`
 
 Example:
 ```json

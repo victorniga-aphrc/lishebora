@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **POS vs label sugar consistency** — When `supermarket_classification` text suggests no/low added sugar but KNPM flags `HIGH_IN_SUGAR`, a **`warnings`** entry is appended (`classification_consistency.py`) so responses are not read as contradictory without explanation.
+- **Supermarket POS taxonomy on extract** — `OcrResult.supermarket_classification` (`class_name`, `subclass_name`, `nova`, `matched_description`, `match_method`, `match_score`) from `data/product_class_subclass_lookup.csv` via `app/services/supermarket_lookup.py` (exact + fuzzy with `rapidfuzz`).
+- **Config** — `SUPERMARKET_LOOKUP_CSV`, `SUPERMARKET_FUZZY_MIN_SCORE`, `SUPERMARKET_TAXONOMY_FUZZY_MIN_SCORE`.
+- **Persistence** — `save_ocr_result_to_db` merges `supermarket_classification` into `Scan.model_raw_output`.
+- **Demo** — “Supermarket taxonomy (POS)” card on `/`.
+- **`OcrResult` JSON** — Top-level **`class_name`** and **`subclass_name`** (mirrored from `supermarket_classification`) for easier clients; persisted on scans when applicable.
+
+### Changed
+- Fixed undefined `has_trans_fats` / `has_sweeteners` when the model returns no ingredients (KNPM path).
+- **Supermarket lookup**: SKU fuzzy matching now uses **max(WRatio, partial_ratio)** so OCR names like “Orchid Valley Delight” match long POS descriptions; **category → taxonomy** fallback (`taxonomy_subclass_from_category` / `taxonomy_class_from_category`) when no SKU line matches.
+- **Lookup CSV build**: `build_product_classification_lookup.py` strips **pack sizes / pack types** from POS descriptions, then dedupes (**~1.2k** rows from 10k lines in current data). Shared **`app/utils/pos_description.normalize_pack_description`** used at build time and in **`supermarket_lookup`** for OCR queries (extended for **G/**, **PCS**, **\* V/**, sachet **N\*MG/**, **N\* FLAVOUR**, trailing counts, **GLASS**/CTN/SATCHETS/POUCH, **PK**, **/KG**, **NS** counts, **14S/**, **J/SUPER**, trailing `5*`, empty **( )**, **/ (6S)**, space-slash-space, **punctuation** (`.`, `,`, trailing stops), standalone **PL**, **EOT** / spaced **E O T**, **CHOC**/**BISC** expansions, **CT** / **M/B** / **M/BAK(ERS)** removal, etc.).
+
+---
+
 ## [0.5.0] - 2026-02-12
 
 ### Added
