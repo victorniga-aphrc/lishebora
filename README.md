@@ -35,31 +35,32 @@ This backend focuses on **Phase 1**: building a robust ingredient extraction pip
 
 ## Current Status
 
-### ✅ Completed (Phase 1 - Ingredient & Nutrition Extraction)
+### ✅ What’s working (as of early 2026)
 
-- **Image Upload API**: Accepts images via file upload or camera capture
-- **OCR Pipeline**: Uses GPT-4.1-mini (via Replicate) to extract ingredients and nutrition facts from food label images
-- **Structured Output**: Returns clean JSON with:
-  - List of ingredient names (parsed and cleaned)
-  - **Complete nutrition facts** (all nutrients visible on label):
-    - Core KNPM nutrients: energy, fats, sugar, sodium, protein, carbs, fiber
-    - **Additional nutrients**: potassium, calcium, iron, vitamins, etc. (all nutrients found on label)
-  - Product information (name, brand, category, barcode if visible)
-  - Raw text extracted from the label
-  - Extraction metadata (what was found/missing)
-  - Warnings and errors for missing data
-  - Model raw output (for debugging)
-- **Web Demo Interface**: Simple HTML page for testing uploads and viewing results
-- **Error Handling**: Robust error handling with graceful degradation and clear error messages
+This section reflects **what you can run and use today** in this repo.
 
-### 🚧 In Progress / Planned
+| Area | Status |
+|------|--------|
+| **HTTP API** | `GET /` (demo page), `POST /extract` (image → structured JSON), `GET /health`. Static assets: `/octagon_images/*` for warning SVGs. |
+| **Vision OCR** | **OpenAI** (default `gpt-4.1-mini`) reads the label image and returns structured JSON—not the primary Replicate path anymore. (`OPENAI_API_KEY` required.) |
+| **Ingredients** | Parsed list of ingredient names (no `confidence` field). |
+| **Nutrition** | Per-100g fields where extractable: energy, fats (incl. saturated/trans), sugar, sodium, protein, carbs, fiber, plus `additional_nutrients` for anything else on the table. |
+| **Product info** | Name, brand, category, barcode when visible. |
+| **Metadata & safety** | `extraction_metadata`, `warnings`, `errors`, `raw_text`, `model_raw_output` for debugging. Keyword flags for trans fats / non-nutritive sweeteners in ingredients. |
+| **KNPM labelling (v1)** | After extraction, **`knpm_label`** is attached: `FIT_FOR_CONSUMPTION`, `LESS_HEALTHY`, or **`UNKNOWN`** when there is no usable numeric nutrition. Multiple warnings: `HIGH_IN_SUGAR`, `HIGH_IN_SALT`, `HIGH_IN_FAT` with human-readable `reasons`. Thresholds are a simplified snack-oriented baseline (see `app/services/knpm_labeller.py`). |
+| **Demo UI** | Upload **file** or **camera**; KNPM card with green “fit” octagon or black octagon SVGs; JSON panel with wrapping (no long horizontal scroll). Mobile-friendly with `--host 0.0.0.0` (see below). |
+| **Database** | **PostgreSQL** + **SQLAlchemy** + **Alembic**. Each successful `/extract` can persist products, ingredients, nutrition rows, and scan records (`db_service`). |
+| **Docker** | `Dockerfile` + `docker-compose.yml` for API + Postgres (see [DOCKER_SETUP.md](DOCKER_SETUP.md)). |
+| **Test images** | `ingredient_image_data/` is intended to be **tracked in Git** for samples and experiments. |
+| **Large local files** | `supermarket_a.backup` (and similar dumps) are **`.gitignore`d** so `git add` stays fast—do not commit multi‑GB backups. |
+| **AWS / EC2** | Optional deploy helpers live under **`aws/`** (folder gitignored); see `aws/README.md` on your machine. |
 
-- **KNPM Labeling Engine**: Classify products based on Kenya Nutrient Profile Model thresholds
-- **Nutrition Validation**: Integration with Open Food Facts and Kenya Food Composition Tables
-- **Recommendation Engine**: Suggest healthier alternatives
-- **GenAI Explanations**: Generate user-friendly explanations for labeling decisions
-- **Database Integration**: ✅ PostgreSQL fully implemented and configured - stores products, scans, ingredients, and nutrition data with automatic migrations
-- **Authentication**: User accounts and profiles
+### 🚧 Not built yet (planned)
+
+- **Full KNPM product-type rules**: Current logic is a first pass; official category-specific thresholds and ministry rules still to be encoded.
+- **Open Food Facts / Kenya Food Composition Tables**: No live validation against those databases yet.
+- **Recommendation engine** and **GenAI explanations** for consumers.
+- **Authentication**, user profiles, and analytics/search APIs over stored scans.
 
 ---
 
@@ -70,7 +71,7 @@ This backend focuses on **Phase 1**: building a robust ingredient extraction pip
 - **Framework**: FastAPI (Python 3.11+)
 - **Database**: PostgreSQL with SQLAlchemy ORM
 - **Migrations**: Alembic
-- **OCR/ML**: GPT-4.1-mini via Replicate API
+- **OCR/ML**: GPT-4.1-mini via **OpenAI** API (vision); Replicate env vars remain optional/legacy in `config.py`
 - **Async Runtime**: Uvicorn with async/await
 - **Data Models**: Pydantic for request/response validation, SQLAlchemy for database models
 - **Configuration**: python-dotenv for environment variables
@@ -82,26 +83,27 @@ User Uploads Image
     ↓
 FastAPI Endpoint (/extract)
     ↓
-OCR Client Service
-    ↓
-Replicate API (GPT-4.1-mini)
+OCR Client Service (OpenAI vision)
     ↓
 Response Cleaning & JSON Parsing
     ↓
-Structured Ingredient List
+KNPM Labeller (knpm_label on OcrResult)
     ↓
-JSON Response to Client
+Save to PostgreSQL (db_service)
+    ↓
+JSON Response to Client (+ demo UI on GET /)
 ```
 
 ### Key Components
 
 1. **`app/main.py`**: FastAPI application with routes
-2. **`app/services/ocr_client.py`**: Core OCR logic using Replicate
-3. **`app/services/db_service.py`**: Database service for saving extracted data
-4. **`app/models.py`**: Pydantic models for request/response validation
-5. **`app/database/models.py`**: SQLAlchemy models for database tables
-6. **`app/db.py`**: Database connection and session management
-7. **`app/config.py`**: Configuration management
+2. **`app/services/ocr_client.py`**: Core OCR logic using OpenAI (vision)
+3. **`app/services/knpm_labeller.py`**: KNPM-style classification and octagon codes
+4. **`app/services/db_service.py`**: Persists OCR results to PostgreSQL
+5. **`app/models.py`**: Pydantic models (`OcrResult`, `KnpmLabel`, etc.)
+6. **`app/database/models.py`**: SQLAlchemy ORM tables
+7. **`app/db.py`**: Engine, sessions, `get_db`
+8. **`app/config.py`**: Environment settings (`OPENAI_API_KEY`, `DATABASE_URL`, …)
 
 ---
 
@@ -111,7 +113,7 @@ JSON Response to Client
 
 - Python 3.11 or higher
 - PostgreSQL database (see [DATABASE_SETUP.md](DATABASE_SETUP.md) for setup instructions)
-- Replicate API token ([Get one here](https://replicate.com/account/api-tokens))
+- **OpenAI API key** with access to a vision-capable model (default `gpt-4.1-mini`)
 - Virtual environment (recommended)
 
 ### Installation
@@ -140,12 +142,16 @@ pip install -r requirements.txt
 Create a `.env` file in the project root:
 
 ```bash
-REPLICATE_API_TOKEN=your_replicate_token_here
+# Required for OCR (vision)
+OPENAI_API_KEY=sk-...
 # Optional: override default model
-# REPLICATE_MODEL=openai/gpt-4.1-mini
+# OPENAI_MODEL=gpt-4.1-mini
 
 # Database configuration
 DATABASE_URL=postgresql://postgres@localhost:5432/lishebora
+
+# Legacy (not used by default): Replicate
+# REPLICATE_API_TOKEN=...
 ```
 
 5. **Set up database** (✅ Already completed)
@@ -237,8 +243,10 @@ For a containerized setup with Docker and Docker Compose:
 
    Create a `.env` file:
    ```bash
-   REPLICATE_API_TOKEN=your_replicate_token_here
+   OPENAI_API_KEY=sk-...
+   DATABASE_URL=postgresql://postgres:postgres@db:5432/lishebora
    ```
+   (Match `DATABASE_URL` to your `docker-compose.yml` Postgres service.)
 
 2. **Start services**
 
@@ -352,11 +360,19 @@ http://localhost:8000
   },
   "warnings": [],
   "errors": [],
+  "knpm_label": {
+    "classification": "LESS_HEALTHY",
+    "octagons": ["HIGH_IN_SUGAR"],
+    "reasons": ["Total sugar … g/100g exceeds KNPM threshold …"],
+    "message": null
+  },
   "model_raw_output": {
     "output": "..."
   }
 }
 ```
+
+When nutrition cannot be evaluated, `classification` may be `"UNKNOWN"` and `message` explains why (e.g. no numeric nutrition on the label).
 
 **Response Model**: `OcrResult`
 
@@ -415,9 +431,8 @@ FastAPI automatically generates interactive API documentation:
 1. **Image Upload**: User uploads an image via the `/extract` endpoint
 2. **Image Validation**: FastAPI validates the file is an image
 3. **OCR Client**: `extract_ingredients_from_image()` processes the image:
-   - Converts image bytes to a file-like object
-   - Prepares a structured prompt for GPT-4.1-mini
-   - Calls Replicate API with the image and prompt
+   - Encodes the image for OpenAI vision (base64 data URL)
+   - Calls **OpenAI** chat completions with a structured JSON prompt (default `gpt-4.1-mini`)
 4. **Response Processing**:
    - Cleans the model response (removes markdown fences, extracts JSON)
    - Parses JSON to extract:
@@ -427,8 +442,10 @@ FastAPI automatically generates interactive API documentation:
      - Extraction metadata (what was found/missing)
    - Validates nutrition values (non-negative, reasonable ranges)
    - Detects trans fats and artificial sweeteners from ingredients
+   - Runs **`knpm_labeller.classify_with_knpm()`** to set `knpm_label` (and may append a short message to `warnings`)
    - Generates warnings/errors for missing data
-5. **Structured Output**: Returns `OcrResult` with ingredients, complete nutrition data, product info, and metadata
+5. **Persistence**: `save_ocr_result_to_db()` stores the scan and related rows when the DB is configured
+6. **Structured Output**: Returns `OcrResult` including `knpm_label`, ingredients, nutrition, product info, and metadata
 
 ### Prompt Engineering
 
@@ -473,9 +490,11 @@ The parsing functions handle multiple data types:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `REPLICATE_API_TOKEN` | Yes | - | Replicate API token for accessing GPT-4.1-mini |
-| `REPLICATE_MODEL` | No | `openai/gpt-4.1-mini` | Model identifier for Replicate |
-| `DATABASE_URL` | No | `postgresql://postgres@localhost:5432/lishebora` | PostgreSQL database connection URL |
+| `OPENAI_API_KEY` | **Yes** (for `/extract`) | - | OpenAI API key; used for vision OCR |
+| `OPENAI_MODEL` | No | `gpt-4.1-mini` | Chat/vision model name |
+| `DATABASE_URL` | No | `postgresql://postgres@localhost:5432/lishebora` | PostgreSQL connection URL |
+| `REPLICATE_API_TOKEN` | No | - | Legacy; not used by default OCR path |
+| `REPLICATE_MODEL` | No | `openai/gpt-4.1-mini` | Legacy Replicate model id |
 
 ### Configuration File
 
@@ -493,26 +512,35 @@ Settings are managed in `app/config.py`:
 lishebora_vic/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py              # FastAPI application and routes
-│   ├── config.py            # Configuration management
-│   ├── models.py            # Pydantic data models
+│   ├── main.py              # FastAPI app, demo HTML, static /octagon_images
+│   ├── config.py
+│   ├── db.py
+│   ├── models.py            # Pydantic models (OcrResult, KnpmLabel, …)
+│   ├── database/
+│   │   └── models.py        # SQLAlchemy tables
 │   └── services/
-│       ├── __init__.py
-│       └── ocr_client.py    # OCR extraction logic
-├── ingredient_image_data/   # Sample test images
-├── notebooks/              # Jupyter notebooks (experimentation)
-├── .env                    # Environment variables (not in git)
-├── .gitignore              # Git ignore rules
-├── requirements.txt        # Python dependencies
-└── README.md               # This file
+│       ├── ocr_client.py    # OpenAI vision + parsing + KNPM hook
+│       ├── knpm_labeller.py # KNPM v1 classification
+│       └── db_service.py    # Persist scans / products / nutrition
+├── alembic/                 # Migrations
+├── octagon_images/          # SVG assets for demo (high sugar/salt/fat)
+├── ingredient_image_data/   # Sample test images (tracked in git)
+├── notebooks/               # Jupyter notebooks (experimentation)
+├── docker-compose.yml
+├── Dockerfile
+├── .env                     # Not in git
+├── .gitignore
+├── requirements.txt
+└── README.md
 ```
 
 ### Key Files
 
-- **`app/main.py`**: FastAPI app with `/`, `/extract`, and `/health` endpoints
-- **`app/services/ocr_client.py`**: Core OCR logic using Replicate API
-- **`app/models.py`**: `Ingredient` and `OcrResult` Pydantic models
-- **`app/config.py`**: Settings loader from environment variables
+- **`app/main.py`**: Routes `/`, `/extract`, `/health`; demo UI; mounts `octagon_images`
+- **`app/services/ocr_client.py`**: OpenAI vision OCR and JSON parsing
+- **`app/services/knpm_labeller.py`**: KNPM-style `knpm_label` generation
+- **`app/models.py`**: `OcrResult`, `KnpmLabel`, nutrition and product models
+- **`app/config.py`**: `OPENAI_*`, `DATABASE_URL`, legacy Replicate vars
 
 ---
 
@@ -561,6 +589,7 @@ A successful response should contain:
 - **`errors`**: Array of errors that prevent further processing
 - **`raw_text`**: Full text extracted from the label (if available)
 - **`model_raw_output`**: Raw model response for debugging
+- **`knpm_label`**: Classification, octagon codes, reasons, optional `message` when `UNKNOWN`
 
 Example:
 ```json
@@ -601,6 +630,12 @@ Example:
   "warnings": [],
   "errors": [],
   "raw_text": "INGREDIENTS: Potato, Refined Palmolein Oil, ...",
+  "knpm_label": {
+    "classification": "FIT_FOR_CONSUMPTION",
+    "octagons": [],
+    "reasons": ["All nutrients of concern are within KNPM thresholds."],
+    "message": null
+  },
   "model_raw_output": {"output": "..."}
 }
 ```
@@ -621,17 +656,16 @@ Example:
 
 ### Phase 2: KNPM Labeling
 
-- [ ] Implement KNPM threshold configuration
-- [ ] Build labeling algorithm (Fit for Consumption vs Less Healthy)
-- [ ] Add product category detection
-- [ ] Create `/label` endpoint that takes ingredients and returns label classification
+- [x] First-pass labeling algorithm (sugar / fat / sat fat / sodium + ingredient flags) → `knpm_label` on `/extract`
+- [ ] Official category-specific KNPM thresholds and product-type rules
+- [ ] Configurable thresholds (env or DB) instead of hardcoded demo values
+- [ ] Optional dedicated `/label` endpoint (reuse labeller on stored nutrition)
 
 ### Phase 3: Nutrition Validation
 
 - [ ] Integrate Open Food Facts API
 - [ ] Integrate Kenya Food Composition Tables
-- [ ] Add nutrition data extraction from labels
-- [ ] Validate extracted data against databases
+- [ ] Validate extracted label data against reference databases
 
 ### Phase 4: Recommendations & Explanations
 
@@ -670,7 +704,7 @@ Example:
 
 ### Performance Considerations
 
-- Replicate API calls run in a thread pool to avoid blocking the event loop
+- OpenAI client calls run in a worker thread (`anyio.to_thread`) so the async event loop is not blocked
 - Response cleaning is lightweight (string operations)
 - JSON parsing is strict (fails fast on invalid data)
 
@@ -692,7 +726,7 @@ This is a research project. For contributions or questions, please contact the p
 
 - **APHRC** (African Population and Health Research Center) for project leadership
 - **Ministry of Health, Kenya** for KNPM framework
-- **Replicate** for hosting GPT-4.1-mini model
+- **OpenAI** for vision-capable GPT models used in OCR
 - **Open Food Facts** for open food database
 
 ---
@@ -704,4 +738,4 @@ For questions or issues, please contact the development team.
 ---
 
 **Last Updated**: January 2026  
-**Version**: 0.3.0 (Phase 1 - Ingredient & Complete Nutrition Extraction + Database Integration)
+**Version**: 0.5.0 — OpenAI OCR, KNPM labeller v1, demo octagon UI, PostgreSQL persistence, Docker; see [CHANGELOG.md](CHANGELOG.md).

@@ -30,7 +30,10 @@ services:
     environment:
       # Database connection (using service name 'db' as host)
       DATABASE_URL: postgresql://postgres:postgres@db:5432/lishebora
-      # Replicate API (should be set in .env or passed via environment)
+      # OpenAI (primary OCR path — set in project .env)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      # Legacy Replicate (optional)
       REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
       REPLICATE_MODEL: ${REPLICATE_MODEL:-openai/gpt-4.1-mini}
     ports:
