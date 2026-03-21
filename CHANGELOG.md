@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-02-12
+
+### Added
+- **OpenAI OCR integration**
+  - Switched from Replicate to direct **OpenAI** client (vision‑enabled GPT‑4.x mini models) for label OCR and structured extraction.
+  - Support for image input via base64 data URLs in the OCR pipeline.
+- **KNPM labeller (first version)**
+  - New `knpm_labeller` service that:
+    - Uses simplified KNPM thresholds for sugar, fat, saturated fat and sodium (per 100g) to classify products.
+    - Produces a `knpm_label` block in the API response with:
+      - `classification` (`FIT_FOR_CONSUMPTION`, `LESS_HEALTHY`, `UNKNOWN`)
+      - `octagons` (e.g. `HIGH_IN_SUGAR`, `HIGH_IN_SALT`, `HIGH_IN_FAT`)
+      - detailed `reasons` and an optional `message`.
+  - Proper handling of **no nutrition data** → `classification="UNKNOWN"` with an explicit message.
+- **Demo UI KNPM visuals**
+  - Added a KNPM card to the demo page that:
+    - Shows a **green octagon with a tick** for “Fit for consumption”.
+    - Shows one to three **black octagons** labelled “High in Sugar”, “High in Salt”, “High in Fat” when thresholds are exceeded.
+  - Improved JSON output panel (wrapped lines, vertical scrolling) for better readability.
+
+### Changed
+- Updated `OcrResult` to include a `knpm_label` field.
+- Cleaned up KNPM reason text (removed “demo” wording) and simplified status text in the UI.
+
+---
+
 ## [0.4.0] - 2026-02-12
 
 ### Added

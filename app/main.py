@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -10,6 +11,13 @@ from app.services.ocr_client import OcrClientError, extract_ingredients_from_ima
 
 app = FastAPI(title="Lishebora VIC Backend")
 
+
+# Serve black octagon SVGs under /octagon_images
+app.mount(
+    "/octagon_images",
+    StaticFiles(directory="octagon_images"),
+    name="octagon_images",
+)
 
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
@@ -22,7 +30,7 @@ async def index() -> str:
         <title>Lishebora OCR Demo</title>
         <style>
           body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 2rem; }
-          .container { max-width: 820px; margin: 0 auto; }
+          .container { max-width: 960px; margin: 0 auto; display: grid; grid-template-columns: 1.1fr 1fr; gap: 1.5rem; align-items: flex-start; }
           .card { border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(15,23,42,0.08); }
           h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
           p { color: #4b5563; margin-bottom: 1rem; }
@@ -31,7 +39,51 @@ async def index() -> str:
           input[type="file"] { padding: 0.25rem 0; }
           button { background-color: #2563eb; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; }
           button:hover { background-color: #1d4ed8; }
-          pre { background: #0f172a; color: #e5e7eb; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+          pre {
+            background: #0f172a;
+            color: #e5e7eb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+            max-height: 420px;
+            white-space: pre-wrap;
+            word-break: break-word;
+          }
+          .knpm-card { border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.25rem; background: #f9fafb; }
+          .knpm-header { font-weight: 600; margin-bottom: 0.5rem; }
+          .knpm-status { margin-bottom: 0.75rem; font-size: 0.95rem; }
+          .knpm-status.fit { color: #166534; }
+          .knpm-status.less { color: #b91c1c; }
+          .knpm-status.unknown { color: #6b7280; }
+          .octagon-list { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem; }
+          .octagon-wrapper { display: inline-flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+          .octagon-frame {
+            width: 92px;
+            height: 92px;
+            display: grid;
+            place-items: center;
+            overflow: hidden; /* important when scaling images */
+          }
+          .octagon-img {
+            width: 80px;
+            height: 80px;
+            display: block;
+            object-fit: contain;
+            object-position: center;
+            transform-origin: center center;
+          }
+          .octagon-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-align: center;
+            color: #111827;
+          }
+          .knpm-reason-list { font-size: 0.85rem; color: #4b5563; padding-left: 1rem; }
+          .knpm-reason-list li { margin-bottom: 0.25rem; }
+          @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+          }
         </style>
       </head>
       <body>
@@ -59,20 +111,110 @@ async def index() -> str:
             <h2>Structured Output</h2>
             <pre id="result">Waiting for upload...</pre>
           </div>
+          <div class="knpm-card">
+            <div class="knpm-header">KNPM Label (Demo)</div>
+            <div id="knpm-status" class="knpm-status unknown">No scan yet.</div>
+            <div id="knpm-octagons" class="octagon-list"></div>
+            <ul id="knpm-reasons" class="knpm-reason-list"></ul>
+          </div>
         </div>
         <script>
           const form = document.getElementById("upload-form");
           const resultEl = document.getElementById("result");
           const fileInput = document.getElementById("file-input");
           const cameraInput = document.getElementById("camera-input");
+          const knpmStatusEl = document.getElementById("knpm-status");
+          const knpmOctagonsEl = document.getElementById("knpm-octagons");
+          const knpmReasonsEl = document.getElementById("knpm-reasons");
+
+          function resetKnpmView() {
+            knpmStatusEl.textContent = "No KNPM label yet.";
+            knpmStatusEl.className = "knpm-status unknown";
+            knpmOctagonsEl.innerHTML = "";
+            knpmReasonsEl.innerHTML = "";
+          }
+
+          function renderKnpmLabel(knpm) {
+            if (!knpm) {
+              resetKnpmView();
+              return;
+            }
+
+            // Status
+            knpmStatusEl.className = "knpm-status";
+            if (knpm.classification === "FIT_FOR_CONSUMPTION") {
+              knpmStatusEl.textContent = "Fit for consumption";
+              knpmStatusEl.classList.add("fit");
+              // For now, we don't show a specific fit SVG (only status text).
+              knpmOctagonsEl.innerHTML = "";
+            } else if (knpm.classification === "LESS_HEALTHY") {
+              knpmStatusEl.textContent = "Less healthy";
+              knpmStatusEl.classList.add("less");
+            } else {
+              knpmStatusEl.textContent = knpm.message || "KNPM classification not available.";
+              knpmStatusEl.classList.add("unknown");
+            }
+
+            // Octagons
+            if (knpm.classification !== "FIT_FOR_CONSUMPTION") {
+              knpmOctagonsEl.innerHTML = "";
+              if (Array.isArray(knpm.octagons) && knpm.octagons.length > 0) {
+                const srcMap = {
+                  HIGH_IN_SUGAR: "/octagon_images/high_in_sugar.svg",
+                  HIGH_IN_SALT: "/octagon_images/high_in_salt.svg",
+                  HIGH_IN_FAT: "/octagon_images/high_in_fat.svg"
+                };
+                const labelMap = {
+                  HIGH_IN_SUGAR: "High in sugar",
+                  HIGH_IN_SALT: "High in salt",
+                  HIGH_IN_FAT: "High in fat"
+                };
+                knpm.octagons.forEach(code => {
+                  const wrapper = document.createElement("div");
+                  wrapper.className = "octagon-wrapper";
+                  const frame = document.createElement("div");
+                  frame.className = "octagon-frame";
+                  const img = document.createElement("img");
+                  img.className = "octagon-img";
+                  img.dataset.code = code;
+                  img.alt = labelMap[code] || code.replace(/_/g, " ");
+                  img.src = srcMap[code] || srcMap.HIGH_IN_FAT;
+                  frame.appendChild(img);
+                  wrapper.appendChild(frame);
+                  const caption = document.createElement("div");
+                  caption.className = "octagon-label";
+                  caption.textContent = labelMap[code] || code.replace(/_/g, " ");
+                  wrapper.appendChild(caption);
+                  knpmOctagonsEl.appendChild(wrapper);
+                });
+              }
+            }
+
+            // Reasons
+            knpmReasonsEl.innerHTML = "";
+            if (Array.isArray(knpm.reasons) && knpm.reasons.length > 0) {
+              knpm.reasons.forEach(r => {
+                const li = document.createElement("li");
+                li.textContent = r;
+                knpmReasonsEl.appendChild(li);
+              });
+            }
+
+            // If we have a message (e.g. missing nutrition), surface it as a final note.
+            if (knpm.message) {
+              const li = document.createElement("li");
+              li.textContent = knpm.message;
+              knpmReasonsEl.appendChild(li);
+            }
+          }
 
           form.addEventListener("submit", async (event) => {
             event.preventDefault();
             const formData = new FormData();
 
             // Prefer camera image if provided, otherwise fall back to file upload
-            const cameraFile = cameraInput.files[0];
-            const file = fileInput.files[0];
+            const cameraFile = cameraInput ? cameraInput.files[0] : null;
+            const file = fileInput ? fileInput.files[0] : null;
 
             if (cameraFile) {
               formData.append("image", cameraFile);
@@ -84,15 +226,26 @@ async def index() -> str:
             }
 
             resultEl.textContent = "Processing...";
+            resetKnpmView();
             try {
               const response = await fetch("/extract", {
                 method: "POST",
                 body: formData
               });
+
+              if (!response.ok) {
+                const text = await response.text();
+                resultEl.textContent = "Server error " + response.status + ": " + text;
+                resetKnpmView();
+                return;
+              }
+
               const data = await response.json();
               resultEl.textContent = JSON.stringify(data, null, 2);
+              renderKnpmLabel(data.knpm_label);
             } catch (err) {
               resultEl.textContent = "Error: " + err;
+              resetKnpmView();
             }
           });
         </script>

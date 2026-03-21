@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import base64
-from functools import partial
 from typing import Any, List
 
 import anyio
@@ -16,6 +15,7 @@ from app.models import (
     OcrResult,
     ProductInfo,
 )
+from app.services.knpm_labeller import classify_with_knpm
 
 
 class OcrClientError(Exception):
@@ -379,6 +379,17 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
         if has_sweeteners:
             warnings.append("Artificial sweeteners detected in ingredients list")
 
+    # Apply simplified KNPM-based classification (only when nutrition data is available).
+    knpm_label = classify_with_knpm(
+        nutrition=nutrition_data,
+        has_trans_fats=has_trans_fats if ingredients else False,
+        has_sweeteners=has_sweeteners if ingredients else False,
+    )
+
+    # If we could not classify due to missing nutrition facts, surface that message as a warning.
+    if knpm_label.message:
+        warnings.append(knpm_label.message)
+
     return OcrResult(
         ingredients=ingredients,
         nutrition_per_100g=nutrition_data,
@@ -388,6 +399,7 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
         warnings=warnings,
         errors=errors,
         model_raw_output={"output": text_response},
+        knpm_label=knpm_label,
     )
 
 

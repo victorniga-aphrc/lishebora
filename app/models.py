@@ -83,6 +83,34 @@ class ExtractionMetadata(BaseModel):
     )
 
 
+class KnpmLabel(BaseModel):
+    """
+    KNPM-based classification for a product.
+    """
+
+    classification: str | None = Field(
+        default=None,
+        description="Overall classification: FIT_FOR_CONSUMPTION, LESS_HEALTHY, or UNKNOWN",
+    )
+    octagons: List[str] = Field(
+        default_factory=list,
+        description=(
+            "Specific black-octagon warnings, e.g. HIGH_IN_SUGAR, HIGH_IN_SALT, HIGH_IN_FAT. "
+            "Empty if product is fit for consumption or cannot be evaluated."
+        ),
+    )
+    reasons: List[str] = Field(
+        default_factory=list,
+        description="Human-readable reasons explaining the classification and octagons.",
+    )
+    message: str | None = Field(
+        default=None,
+        description=(
+            "Optional message when classification cannot be applied (e.g. missing nutrition facts)."
+        ),
+    )
+
+
 class OcrResult(BaseModel):
     """Structured output from the OCR / extraction step."""
 
@@ -121,5 +149,9 @@ class OcrResult(BaseModel):
     model_raw_output: Any | None = Field(
         default=None,
         description="Raw output returned by the Replicate model (for debugging)",
+    )
+    knpm_label: KnpmLabel | None = Field(
+        default=None,
+        description="KNPM-based label and black octagon warnings (if nutrition data is available)",
     )
 

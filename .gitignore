@@ -36,9 +36,14 @@ Thumbs.db
 .env.*
 *.key
 *.pem
+start.sh
+stop.sh
 
 # AWS credentials and keys (never commit)
 aws/
+
+# Large local DB dumps (do not commit; slows git add and bloats the repo)
+supermarket_a.backup
 
 # Notebooks (optional – remove if you want them in git)
 *.ipynb_checkpoints/

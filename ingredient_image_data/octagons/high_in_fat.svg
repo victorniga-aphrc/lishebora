@@ -1,0 +1,5 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="156,0 356,0 512,156 512,356 356,512 156,512 0,356 0,156" fill="black"></polygon>
+  <text x="256" y="230" font-size="140" text-anchor="middle" fill="white" font-family="Arial" font-weight="bold">F</text>
+  <text x="256" y="360" font-size="50" text-anchor="middle" fill="white" font-family="Arial" font-weight="bold">HIGH IN FAT</text>
+</svg>
