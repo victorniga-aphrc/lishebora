@@ -61,7 +61,16 @@ class ProductInfo(BaseModel):
     name: str | None = Field(default=None, description="Product name")
     brand: str | None = Field(default=None, description="Brand name")
     category: str | None = Field(
-        default=None, description="Product category (e.g., snacks, beverages)"
+        default=None,
+        description="Product category from label text when visible (e.g. snacks, beverages)",
+    )
+    visual_product_type: str | None = Field(
+        default=None,
+        description=(
+            "Short plain-English product type inferred from the image (pack shape, logos, "
+            "photos, layout) when text is missing or unclear — not retailer POS codes. "
+            "Used as a hint for taxonomy matching."
+        ),
     )
     barcode: str | None = Field(default=None, description="Product barcode (if visible)")
 
@@ -75,6 +84,10 @@ class ExtractionMetadata(BaseModel):
     nutrition_facts_found: bool = Field(
         default=False, description="Whether nutrition facts table was found"
     )
+    nutrition_from_reference_lookup: bool = Field(
+        default=False,
+        description="True when numeric per-100g values came from reference CSV, not the label image",
+    )
     product_name_found: bool = Field(
         default=False, description="Whether product name was found"
     )
@@ -83,13 +96,38 @@ class ExtractionMetadata(BaseModel):
     )
 
 
+class ReferenceNutritionMatch(BaseModel):
+    """When per-100g values are taken from ``reference_nutrition_lookup.csv``."""
+
+    matched_product_name: str = Field(
+        ...,
+        description="Reference row product_name that was matched",
+    )
+    match_method: str | None = Field(
+        default=None,
+        description="e.g. exact_name, fuzzy_combined",
+    )
+    match_score: float | None = Field(
+        default=None,
+        description="Fuzzy score (0–100) when match_method is fuzzy_*",
+    )
+    sub_type: str | None = Field(
+        default=None,
+        description="Source sub_type from reference row (if present)",
+    )
+    form: str | None = Field(
+        default=None,
+        description="Source form from reference row (Solid/Liquid/Paste, if present)",
+    )
+
+
 class SupermarketClassification(BaseModel):
     """
     Supermarket POS taxonomy for the scanned product.
 
-    Resolution: (1) OCR name/brand vs POS SKU ``description``; (2) if needed, OCR
-    ``category`` vs distinct POS ``subclass_name`` / ``class_name`` (for products
-    not listed verbatim and for healthy-alternative bucketing).
+    Resolution: (1) OCR name/brand vs POS SKU ``description``; (2) if needed, fuzzy map
+    label ``category`` and/or ``visual_product_type`` (vision hint) to distinct POS
+    ``subclass_name`` / ``class_name`` (for products not listed verbatim).
     """
 
     class_name: str | None = Field(default=None, description="POS class name")
@@ -101,7 +139,11 @@ class SupermarketClassification(BaseModel):
     )
     match_method: str | None = Field(
         default=None,
-        description="How the match was made, e.g. exact_name, fuzzy_combined",
+        description=(
+            "How the match was made: exact_name, fuzzy_combined, "
+            "taxonomy_subclass_from_category, taxonomy_subclass_from_visual_product_type, "
+            "taxonomy_subclass_from_combined, taxonomy_class_from_* (same suffixes), etc."
+        ),
     )
     match_score: float | None = Field(
         default=None,
@@ -133,6 +175,27 @@ class KnpmLabel(BaseModel):
         default=None,
         description=(
             "Optional message when classification cannot be applied (e.g. missing nutrition facts)."
+        ),
+    )
+    knpm_category_number: str | None = Field(
+        default=None,
+        description="Official KNPM food category code when limits come from knpm_category_threshold.csv",
+    )
+    knpm_category_name: str | None = Field(
+        default=None,
+        description="KNPM category label used to select per-nutrient limits",
+    )
+    knpm_category_match_score: float | None = Field(
+        default=None,
+        description="Fuzzy match score (0–100) when category was inferred from OCR/POS hints",
+    )
+    knpm_thresholds_source: str | None = Field(
+        default=None,
+        description=(
+            "csv_fuzzy: matched category_name from hints; "
+            "csv_pos_class_bridge: POS class_name mapped to KNPM category (e.g. BREADS→2.2); "
+            "csv_default_composite: no match, used category 6.0 Composite foods; "
+            "hardcoded_fallback: CSV missing, legacy fixed limits"
         ),
     )
 
@@ -191,6 +254,10 @@ class OcrResult(BaseModel):
     supermarket_classification: SupermarketClassification | None = Field(
         default=None,
         description="Full POS lookup result (NOVA, match method, scores). class_name/subclass_name above are copied from here.",
+    )
+    reference_nutrition_match: ReferenceNutritionMatch | None = Field(
+        default=None,
+        description="Set when nutrition_per_100g was filled from reference_nutrition_lookup.csv",
     )
 
     @model_validator(mode="after")

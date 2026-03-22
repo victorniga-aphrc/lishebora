@@ -1,0 +1,9 @@
+feat: enrich /extract with reference nutrition, KNPM limits, and taxonomy hints
+
+- Fill nutrition_per_100g from reference_nutrition_lookup when OCR has no usable numbers
+- Resolve KNPM per-category limits from knpm_category_threshold.csv (multi-hint fuzzy,
+  POS class bridge e.g. BREADS→2.2, composite 6.0 fallback)
+- Add visual_product_type for vision-informed POS taxonomy matching
+- Extend normalize_pack_description (glued sizes, 500MLX6, G14G, 10'S)
+- Persist supermarket_classification + reference_nutrition_match on scans
+- Add docs/PIPELINE.md (Mermaid); README/CHANGELOG alignment

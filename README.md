@@ -13,6 +13,7 @@ This repository contains the backend API for the Lishebora nutrition labelling t
 - [Docker Setup](#docker-setup)
 - [API Documentation](#api-documentation)
 - [How It Works](#how-it-works)
+- [Pipeline flow (diagram)](docs/PIPELINE.md)
 - [Configuration](#configuration)
 - [Project Structure](#project-structure)
 - [Testing](#testing)
@@ -47,7 +48,7 @@ This section reflects **what you can run and use today** in this repo.
 | **Nutrition** | Per-100g fields where extractable: energy, fats (incl. saturated/trans), sugar, sodium, protein, carbs, fiber, plus `additional_nutrients` for anything else on the table. |
 | **Product info** | Name, brand, category, barcode when visible. |
 | **Metadata & safety** | `extraction_metadata`, `warnings`, `errors`, `raw_text`, `model_raw_output` for debugging. Keyword flags for trans fats / non-nutritive sweeteners in ingredients. |
-| **KNPM labelling (v1)** | After extraction, **`knpm_label`** is attached: `FIT_FOR_CONSUMPTION`, `LESS_HEALTHY`, or **`UNKNOWN`** when there is no usable numeric nutrition. Multiple warnings: `HIGH_IN_SUGAR`, `HIGH_IN_SALT`, `HIGH_IN_FAT` with human-readable `reasons`. Thresholds are a simplified snack-oriented baseline (see `app/services/knpm_labeller.py`). |
+| **KNPM labelling (v1)** | After extraction, **`knpm_label`** is attached: `FIT_FOR_CONSUMPTION`, `LESS_HEALTHY`, or **`UNKNOWN`** when there is no usable numeric nutrition. Octagon-style flags: `HIGH_IN_SUGAR`, `HIGH_IN_SALT`, `HIGH_IN_FAT` with human-readable `reasons`. Limits come from **`data/knpm_category_threshold.csv`** when available (category inferred from OCR + POS hints), else legacy fixed thresholds. |
 | **Demo UI** | Upload **file** or **camera**; KNPM card with green “fit” octagon or black octagon SVGs; JSON panel with wrapping (no long horizontal scroll). Mobile-friendly with `--host 0.0.0.0` (see below). |
 | **Database** | **PostgreSQL** + **SQLAlchemy** + **Alembic**. Each successful `/extract` can persist products, ingredients, nutrition rows, and scan records (`db_service`). |
 | **Docker** | `Dockerfile` + `docker-compose.yml` for API + Postgres (see [DOCKER_SETUP.md](DOCKER_SETUP.md)). |
@@ -98,7 +99,7 @@ JSON Response to Client (+ demo UI on GET /)
 
 1. **`app/main.py`**: FastAPI application with routes
 2. **`app/services/ocr_client.py`**: Core OCR logic using OpenAI (vision)
-3. **`app/services/knpm_labeller.py`**: KNPM-style classification and octagon codes
+3. **`app/services/knpm_labeller.py`** / **`knpm_category_thresholds.py`**: KNPM classification and per-category limits from CSV
 4. **`app/services/db_service.py`**: Persists OCR results to PostgreSQL
 5. **`app/models.py`**: Pydantic models (`OcrResult`, `KnpmLabel`, etc.)
 6. **`app/database/models.py`**: SQLAlchemy ORM tables
@@ -349,12 +350,14 @@ http://localhost:8000
     "name": "Potato Chips",
     "brand": "Brand X",
     "category": "snacks",
-    "barcode": "1234567890123"
+    "barcode": "1234567890123",
+    "visual_product_type": "savoury potato crisps"
   },
   "raw_text": "INGREDIENTS: Potato, Refined Palmolein Oil, ...",
   "extraction_metadata": {
     "ingredients_found": true,
     "nutrition_facts_found": true,
+    "nutrition_from_reference_lookup": false,
     "product_name_found": true,
     "barcode_found": true
   },
@@ -363,8 +366,12 @@ http://localhost:8000
   "knpm_label": {
     "classification": "LESS_HEALTHY",
     "octagons": ["HIGH_IN_SUGAR"],
-    "reasons": ["Total sugar … g/100g exceeds KNPM threshold …"],
-    "message": null
+    "reasons": ["Total sugar … g/100g exceeds KNPM limit for …"],
+    "message": null,
+    "knpm_category_number": "4.1",
+    "knpm_category_name": "Ready to eat savoury snacks",
+    "knpm_category_match_score": 62.5,
+    "knpm_thresholds_source": "csv_fuzzy"
   },
   "model_raw_output": {
     "output": "..."
@@ -426,6 +433,8 @@ FastAPI automatically generates interactive API documentation:
 
 ## How It Works
 
+**Full pipeline (Mermaid diagrams + step table):** [docs/PIPELINE.md](docs/PIPELINE.md).
+
 ### OCR Pipeline
 
 1. **Image Upload**: User uploads an image via the `/extract` endpoint
@@ -442,8 +451,8 @@ FastAPI automatically generates interactive API documentation:
      - Extraction metadata (what was found/missing)
    - Validates nutrition values (non-negative, reasonable ranges)
    - Detects trans fats and artificial sweeteners from ingredients
-   - Runs **`knpm_labeller.classify_with_knpm()`** to set `knpm_label` (and may append a short message to `warnings`)
-   - Runs **`supermarket_lookup.lookup_supermarket_classification()`** to set `supermarket_classification` from the POS lookup CSV (exact, then fuzzy)
+   - Fills **`nutrition_per_100g`** from **`reference_nutrition_lookup`** when the label has no usable numbers (optional)
+   - Runs **`supermarket_lookup`** first (POS SKU, then taxonomy), then **`knpm_category_thresholds`** + **`knpm_labeller`** for category-aware limits and `knpm_label`
    - Generates warnings/errors for missing data
 5. **Persistence**: `save_ocr_result_to_db()` stores the scan and related rows when the DB is configured (merges `supermarket_classification` into `model_raw_output` on the scan)
 6. **Structured Output**: Returns `OcrResult` including `knpm_label`, `supermarket_classification`, ingredients, nutrition, product info, and metadata
@@ -479,7 +488,7 @@ The parsing functions handle multiple data types:
   - Core KNPM nutrients (explicit fields for easy access)
   - **Additional nutrients** (potassium, calcium, iron, vitamins, etc.) stored in `additional_nutrients` dict
   - Validates all values (non-negative, reasonable ranges)
-- **`_parse_product_info()`**: Extracts product name, brand, category, barcode
+- **`_parse_product_info()`**: Extracts product name, brand, category, barcode, `visual_product_type` (vision hint for taxonomy)
 - **`_detect_trans_fats_and_sweeteners()`**: Scans ingredients for trans fat and artificial sweetener keywords
 - All functions use strict error handling (return empty/null on parse failure)
 
@@ -496,6 +505,14 @@ The parsing functions handle multiple data types:
 | `DATABASE_URL` | No | `postgresql://postgres@localhost:5432/lishebora` | PostgreSQL connection URL |
 | `REPLICATE_API_TOKEN` | No | - | Legacy; not used by default OCR path |
 | `REPLICATE_MODEL` | No | `openai/gpt-4.1-mini` | Legacy Replicate model id |
+| `SUPERMARKET_LOOKUP_CSV` | No | `data/product_class_subclass_lookup.csv` | POS taxonomy lookup for `supermarket_classification` |
+| `SUPERMARKET_FUZZY_MIN_SCORE` | No | `72` | Min fuzzy score for SKU line match |
+| `SUPERMARKET_TAXONOMY_FUZZY_MIN_SCORE` | No | `52` | Min score for category→taxonomy fallback |
+| `REFERENCE_NUTRITION_LOOKUP_CSV` | No | `data/reference_nutrition_lookup.csv` | Reference per-100g facts when the label has no usable nutrition table |
+| `REFERENCE_NUTRITION_FUZZY_MIN_SCORE` | No | `72` | Min fuzzy score for reference nutrition name match |
+| `REFERENCE_NUTRITION_LOOKUP_ENABLED` | No | `true` | Set `false` to disable reference nutrition fallback on `/extract` |
+| `KNPM_CATEGORY_THRESHOLD_CSV` | No | `data/knpm_category_threshold.csv` | Official KNPM **per-category nutrient limits** (g/100 g/ml) for “high in” assessments — not product nutrition values |
+| `KNPM_CATEGORY_FUZZY_MIN_SCORE` | No | `55` | Min fuzzy score to match OCR/POS hints to a KNPM `category_name` |
 
 ### Configuration File
 
@@ -516,21 +533,26 @@ lishebora_vic/
 │   ├── main.py              # FastAPI app, demo HTML, static /octagon_images
 │   ├── config.py
 │   ├── db.py
-│   ├── models.py            # Pydantic models (OcrResult, KnpmLabel, SupermarketClassification, …)
+│   ├── models.py            # Pydantic models (OcrResult, KnpmLabel, SupermarketClassification, ReferenceNutritionMatch, …)
 │   ├── database/
 │   │   └── models.py        # SQLAlchemy tables
 │   └── services/
-│       ├── ocr_client.py         # OpenAI vision + parsing + KNPM + POS lookup
-│       ├── knpm_labeller.py      # KNPM v1 classification
-│       ├── supermarket_lookup.py # POS class/subclass/NOVA from lookup CSV
-│       └── db_service.py         # Persist scans / products / nutrition
+│       ├── ocr_client.py              # OpenAI vision + reference nutrition + POS + KNPM orchestration
+│       ├── knpm_labeller.py            # KNPM v1 classification
+│       ├── knpm_category_thresholds.py # Load official per-category limits CSV
+│       ├── supermarket_lookup.py        # POS class/subclass/NOVA from lookup CSV
+│       ├── reference_nutrition_lookup.py # Reference per-100g CSV when label nutrition is empty
+│       └── db_service.py                # Persist scans / products / nutrition
 ├── alembic/                 # Migrations
 ├── octagon_images/          # SVG assets for demo (high sugar/salt/fat)
 ├── ingredient_image_data/   # Sample test images (tracked in git)
+├── docs/
+│   └── PIPELINE.md          # Pipeline flow, Mermaid diagrams, data/env reference
 ├── data/
 │   ├── huge_data.csv                    # Wide POS export (many columns)
-│   ├── product_class_subclass_lookup.csv # Slim lookup: description → class/subclass/nova
-│   └── all_categories_combined.csv      # Other nutrition/category reference
+│   ├── product_class_subclass_lookup.csv # Slim POS lookup: description → class/subclass/nova
+│   ├── all_categories_combined.csv       # Raw reference export (nutrition + categories; uncleaned)
+│   └── reference_nutrition_lookup.csv    # Cleaned nutrition reference (built from all_categories_combined)
 ├── notebooks/               # Jupyter notebooks (experimentation)
 ├── docker-compose.yml
 ├── Dockerfile
@@ -543,11 +565,14 @@ lishebora_vic/
 ### Key Files
 
 - **`app/main.py`**: Routes `/`, `/extract`, `/health`; demo UI; mounts `octagon_images`
-- **`app/services/ocr_client.py`**: OpenAI vision OCR and JSON parsing
-- **`app/services/knpm_labeller.py`**: KNPM-style `knpm_label` generation
-- **`app/models.py`**: `OcrResult`, `KnpmLabel`, nutrition and product models
-- **`app/config.py`**: `OPENAI_*`, `DATABASE_URL`, `SUPERMARKET_*` lookup paths/scores, legacy Replicate vars
+- **`app/services/ocr_client.py`**: OpenAI vision, reference nutrition fallback, POS lookup, KNPM resolution + classification
+- **`app/services/knpm_labeller.py`**: Compare nutrients to resolved KNPM limits → `knpm_label`
+- **`app/services/knpm_category_thresholds.py`**: Load `knpm_category_threshold.csv`; fuzzy + POS class bridge → threshold row
+- **`app/models.py`**: `OcrResult`, `KnpmLabel`, `ReferenceNutritionMatch`, nutrition and product models
+- **`app/config.py`**: `OPENAI_*`, `DATABASE_URL`, `SUPERMARKET_*`, `REFERENCE_NUTRITION_*`, `KNPM_CATEGORY_*`, legacy Replicate vars
 - **`app/services/supermarket_lookup.py`**: Load lookup CSV; exact + fuzzy match to `supermarket_classification`
+- **`app/services/reference_nutrition_lookup.py`**: Load reference nutrition CSV; fill `nutrition_per_100g` when OCR has no usable numbers
+- **`docs/PIPELINE.md`**: Pipeline diagrams and step-by-step flow
 
 ### Supermarket product class / subclass (data pipeline)
 
@@ -558,6 +583,7 @@ For KNPM, product **category** often depends on **class** and **subclass** from 
 | `data/huge_data.csv` | Full POS-style export (transactions, pricing, many columns). |
 | **`data/product_class_subclass_lookup.csv`** | **Trimmed reference**: `description`, `class_name`, `subclass_name`, `nova`. Built by stripping **pack sizes** (e.g. 500ML, 1L, 1KG, **200G/**, **35G/**), **piece counts** (**300PCS**, **6PCS**, `(12PCS)`, **65X5PCS**, **4PK**/**8PK**), **/KG**, counts like **10S**/**80S**/**6S**/**14S/**, trailing `5*`, **4/6/8 J/SUPER**, bare **J/SUPER**, empty `( )`, `/ (6S)` after cubes, slash-with-spaces-on-both-sides (without touching **S/BERRY**, **T/BAG**, **G/TOP**), multipacks (**6X300ML**), patterns like `400* V/` and `5*1.6G/`, trailing small **pack counts**, **commas**, **full stops** (including trailing and abbreviation dots like `G.` / `ORIG.` / `BISC.`, but not decimal points in numbers), standalone **`PL`**, **EOT** / **`E O T`**, expansions **`CHOC`→`CHOCOLATE`**, **`BISC`→`BISCUIT`**, removal of **`CT`**, **`M/B`**, **`M/BAK`**, **`M/BAKERS`**, and common pack tokens (PET, BTL, TR, GLASS, CTN, POUCH, …), then **deduplicating** — same logical product in different sizes becomes **one row** (aligned with nutrition per 100g/ml). |
 | `scripts/build_product_classification_lookup.py` | Regenerates the lookup from `huge_data.csv`. Default: strip pack + dedupe. Use `--no-strip-pack` for legacy exact-POS lines only. |
+| `scripts/build_reference_nutrition_lookup.py` | Builds **`data/reference_nutrition_lookup.csv`** from **`data/all_categories_combined.csv`**: drops junk columns, parses nutrients (kcal/kJ/g/mg), normalizes **`product_name`** with `normalize_pack_description`, scales **per-X g** rows to **per 100 g** (portion logic is internal only), dedupes by normalized name. **Runtime:** `ocr_client` uses this file when the model returns no usable numeric nutrition (see `REFERENCE_NUTRITION_*` env vars). |
 | `app/utils/pos_description.py` | Shared `normalize_pack_description()` used by the build script and **runtime** `supermarket_lookup` so OCR names with sizes still match. |
 
 **Regenerate lookup**
@@ -572,9 +598,28 @@ python scripts/build_product_classification_lookup.py
 - **SQLite** — Good when the table grows large or you want SQL (indexes, `LIKE`, joins) without running Postgres migrations for reference data only.
 - **PostgreSQL seed table** — Best if the same lookup must be shared across app instances and updated operationally like other app data.
 
-**Pipeline (implemented)** — After OCR, classification uses `data/product_class_subclass_lookup.csv` in two steps: (1) **Product line** — `product_info.name` (and `brand` + `name`) vs column `description`, after the **same pack-size normalization** as the CSV build (then exact match, then fuzzy **max(WRatio, partial_ratio)**). Cutoff: `SUPERMARKET_FUZZY_MIN_SCORE` (default `72`). (2) **Taxonomy fallback** — if no line hit, `product_info.category` vs distinct POS `subclass_name` / `class_name` (`token_set_ratio`; cutoff `SUPERMARKET_TAXONOMY_FUZZY_MIN_SCORE`, default `52`). Supports **healthy alternatives** (same subclass → suggest fitter SKUs). Results: `OcrResult.supermarket_classification` and top-level `class_name` / `subclass_name`; merged into `Scan.model_raw_output`. Override CSV path with `SUPERMARKET_LOOKUP_CSV`.
+**Pipeline (implemented)** — After OCR JSON is parsed: **Reference nutrition** — if there is **no usable numeric** per-100g data from the label, match `product_info` to **`data/reference_nutrition_lookup.csv`** (exact normalized name, then fuzzy **max(WRatio, partial_ratio)**; cutoff `REFERENCE_NUTRITION_FUZZY_MIN_SCORE`, default `72`). On success, `nutrition_per_100g` is filled, `reference_nutrition_match` and `extraction_metadata.nutrition_from_reference_lookup` are set, a **warning** explains the source, and KNPM runs on those values. **Supermarket taxonomy** — `data/product_class_subclass_lookup.csv` in two steps: (1) **Product line** — `product_info.name` (and `brand` + `name`) vs column `description`, after the **same pack-size normalization** as the CSV build (then exact match, then fuzzy). Cutoff: `SUPERMARKET_FUZZY_MIN_SCORE` (default `72`). (2) **Taxonomy fallback** — if no line hit, fuzzy-map **`product_info.category`** (printed text), **`product_info.visual_product_type`** (vision-only hint from the model: pack, logos, layout), and **`category` + `visual_product_type` combined** to distinct POS `subclass_name` / `class_name` (`token_set_ratio`; cutoff `SUPERMARKET_TAXONOMY_FUZZY_MIN_SCORE`, default `52`). The **highest-scoring** candidate wins; `match_method` records the source (e.g. `taxonomy_subclass_from_visual_product_type`). POS results: `OcrResult.supermarket_classification` and top-level `class_name` / `subclass_name`; both lookups merge into `Scan.model_raw_output` when scans are saved.
+
+### Reference nutrition (`all_categories_combined` → `reference_nutrition_lookup.csv`)
+
+- **Source**: `data/all_categories_combined.csv` (wide export with prices, pack text, messy headers).
+- **Built file**: `data/reference_nutrition_lookup.csv` — `product_name`, macronutrients as **floats** (sodium in **g** per 100 g/ml to match `NutritionData`), plus `sub_type` and `form` from the source. Portion/basis/category/flavour are **not** exported (they are only used while building/scaling).
+- **Regenerate**: `python scripts/build_reference_nutrition_lookup.py`
+- **Name cleanup** (same `normalize_pack_description` as POS matching): strips spaced sizes (**500G**, **250ML**, …), **6X300ML**-style multipacks, **glued** sizes with no space before the number (**OIL500G**, **POUCH200ML**, **COOK135G**), reverse multipacks (**500MLX6**, **1LX6**, **1.5LX6**), stray codes like **G14G**, and apostrophe piece counts (**10'S**). Brand apostrophes (e.g. **BOB'S**) are unchanged.
+- **Deduping**: one row per normalized `product_name`; merges pick the **more complete** row, then clearer **portion** basis.
+- **Runtime (`/extract`)**: when the vision model returns **no usable numeric** nutrition, the app fills from this CSV (see **Reference nutrition** in the pipeline paragraph above). Responses include `reference_nutrition_match` and a warning that values did not come from the image.
 
 **POS vs label (important)** — Retail taxonomy is **not** a nutrition claim. It can disagree with the pack (e.g. SKU matched to “no added sugar” in POS while the label shows high sugar). **KNPM uses the nutrition table**; when POS wording implies no/low added sugar but `knpm_label` includes `HIGH_IN_SUGAR`, the API adds a **`warnings`** entry via `classification_consistency.warning_pos_taxonomy_vs_label_sugar` so clients can explain the mismatch and avoid recommending alternatives purely from the conflicting subclass.
+
+### KNPM category thresholds (`knpm_category_threshold.csv`)
+
+- **What it is**: Official-style **limits per food category** (total fat, saturated fat, total sugar, sodium in **g per 100 g/ml**) — the numbers you compare **against** label/reference nutrition to decide “high in …”. It is **not** a catalogue of typical nutrient amounts and **cannot** replace `reference_nutrition_lookup.csv` when you need product-level values.
+- **Runtime**: After **supermarket** classification, the app builds a hint string from `product_info` (category, visual type, name) and POS fields (`subclass_name`, `class_name`, `matched_description`), then **fuzzy-matches** to the CSV `category_name` (`KNPM_CATEGORY_FUZZY_MIN_SCORE`, default `55`). If there is no match, it uses category **6.0 Composite foods** as a general default and adds a **warning**. If the file is missing, the API falls back to the previous **legacy fixed** thresholds.
+- **API**: `knpm_label` includes `knpm_category_number`, `knpm_category_name`, optional `knpm_category_match_score`, and `knpm_thresholds_source` (`csv_fuzzy` | `csv_pos_class_bridge` | `csv_default_composite` | `hardcoded_fallback`).
+- **POS class bridge**: when fuzzy matching to long MoH names is still weak, known retailer **`class_name`** values are mapped (e.g. **`BREADS` → KNPM 2.2**). Extend `app/services/knpm_category_thresholds.py` → `_POS_CLASS_TO_KNPM_NUMBER` as needed.
+- **FAQ**
+  - *Why is nutrition empty but KNPM “has categories”?* The CSV only stores **limits** (grams per 100 g/ml to compare against). **Actual** kcal/sugar/fat/sodium must come from the **label** or **`reference_nutrition_lookup.csv`**. If the image has no table and there is no matching product row with numbers in the reference file, values stay empty and KNPM stays **UNKNOWN** for nutrients.
+  - *Why did I see category 6.0 instead of 2.2 for bread?* Older logic used **token_set_ratio only**; short strings like `WHITE BREAD` often scored below the cutoff against long names like “Breads and ordinary bakery products”. The resolver now tries **multiple hint variants**, **combined scorers** (token set + partial + WRatio), and the **BREADS → 2.2** bridge.
 
 ---
 
@@ -617,7 +662,7 @@ A successful response should contain:
 - **`nutrition_per_100g`**: Complete nutrition data with:
   - Core KNPM nutrients (explicit fields): energy, fats, sugar, sodium, protein, carbs, fiber
   - **`additional_nutrients`**: Dict with all other nutrients found (potassium, calcium, iron, vitamins, etc.)
-- **`product_info`**: Product name, brand, category, barcode (if available)
+- **`product_info`**: Product name, brand, category, barcode, **`visual_product_type`** (optional plain-English type from packaging for POS taxonomy when text is weak)
 - **`class_name`** / **`subclass_name`**: Supermarket POS taxonomy for this scan (top-level; `null` if the product could not be resolved against the lookup CSV). Same values as inside `supermarket_classification` when present.
 - **`extraction_metadata`**: Flags indicating what was found/missing
 - **`warnings`**: Array of warnings about missing or incomplete data
@@ -655,11 +700,13 @@ Example:
     "name": "Potato Chips",
     "brand": "Brand X",
     "category": "snacks",
-    "barcode": "1234567890123"
+    "barcode": "1234567890123",
+    "visual_product_type": "savoury potato crisps"
   },
   "extraction_metadata": {
     "ingredients_found": true,
     "nutrition_facts_found": true,
+    "nutrition_from_reference_lookup": false,
     "product_name_found": true,
     "barcode_found": true
   },

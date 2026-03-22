@@ -5,9 +5,11 @@ Resolve supermarket POS class / subclass / NOVA from OCR product info.
    OCR text and CSV rows are normalized with the same pack-size stripping as the
    build script. Fuzzy uses max(WRatio, partial_ratio) for spelling / variant gaps.
 
-2) Taxonomy fallback: if no SKU hit, match OCR ``category`` to distinct POS
-   ``subclass_name`` then ``class_name`` (token_set_ratio). This lands "Fruit Drink"
-   in the fruit-drink subclass even when the product SKU is not in the file.
+2) Taxonomy fallback: if no SKU hit, fuzzy-map label ``category`` and/or vision-based
+   ``visual_product_type`` to distinct POS ``subclass_name`` then ``class_name``
+   (token_set_ratio). The best-scoring candidate wins. This lands "Fruit Drink" or
+   a visual hint like "juice carton" in a fruit-drink subclass when the SKU line
+   is not in the file.
 """
 
 from __future__ import annotations
@@ -185,18 +187,47 @@ def _match_by_sku_descriptions(
     )
 
 
-def _match_by_category_taxonomy(
-    product_info: Any,
-    min_score: float,
-) -> Any | None:
-    """Map OCR ``category`` to a POS subclass or class (distinct labels in CSV)."""
-    from app.models import SupermarketClassification
+def _taxonomy_candidates_from_product_info(product_info: Any) -> list[tuple[str, str]]:
+    """
+    Ordered unique strings to try against POS taxonomy (subclass then class).
+
+    Tags are used in ``match_method`` (e.g. taxonomy_subclass_from_visual_product_type).
+    """
+    out: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    def _add(tag: str, text: str | None) -> None:
+        s = (text or "").strip()
+        if len(s) < 3:
+            return
+        key = s.casefold()
+        if key in seen:
+            return
+        seen.add(key)
+        out.append((tag, s))
 
     if not product_info:
-        return None
-    cat = (product_info.category or "").strip()
-    if len(cat) < 3:
-        return None
+        return out
+
+    c = getattr(product_info, "category", None)
+    v = getattr(product_info, "visual_product_type", None)
+    _add("category", c)
+    _add("visual_product_type", v)
+    c_s = (c or "").strip()
+    v_s = (v or "").strip()
+    if c_s and v_s:
+        _add("combined", f"{c_s} {v_s}")
+
+    return out
+
+
+def _match_one_category_string(
+    cat: str,
+    min_score: float,
+    source_tag: str,
+) -> Any | None:
+    """Try subclass labels then class labels for a single query string."""
+    from app.models import SupermarketClassification
 
     if _data.taxonomy_subclass_entries:
         labels = [e[0] for e in _data.taxonomy_subclass_entries]
@@ -214,7 +245,7 @@ def _match_by_category_taxonomy(
                 subclass_name=row["subclass_name"],
                 nova=row["nova"],
                 matched_description=row["description"],
-                match_method="taxonomy_subclass_from_category",
+                match_method=f"taxonomy_subclass_from_{source_tag}",
                 match_score=float(score),
             )
 
@@ -234,11 +265,34 @@ def _match_by_category_taxonomy(
                 subclass_name=row["subclass_name"],
                 nova=row["nova"],
                 matched_description=row["description"],
-                match_method="taxonomy_class_from_category",
+                match_method=f"taxonomy_class_from_{source_tag}",
                 match_score=float(score),
             )
 
     return None
+
+
+def _match_by_category_taxonomy(
+    product_info: Any,
+    min_score: float,
+) -> Any | None:
+    """Map OCR category and/or vision ``visual_product_type`` to POS taxonomy."""
+    candidates = _taxonomy_candidates_from_product_info(product_info)
+    if not candidates:
+        return None
+
+    best: Any | None = None
+    best_score = -1.0
+    for source_tag, cat in candidates:
+        hit = _match_one_category_string(cat, min_score, source_tag)
+        if hit is None:
+            continue
+        sc = float(hit.match_score or 0.0)
+        if sc > best_score:
+            best_score = sc
+            best = hit
+
+    return best
 
 
 def lookup_supermarket_classification(

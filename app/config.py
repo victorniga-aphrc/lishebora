@@ -43,6 +43,31 @@ class Settings:
         os.getenv("SUPERMARKET_TAXONOMY_FUZZY_MIN_SCORE", "52")
     )
 
+    # Reference nutrition (CSV built from all_categories_combined) — fills gaps when label has no table
+    reference_nutrition_lookup_csv: Path = Path(
+        os.getenv(
+            "REFERENCE_NUTRITION_LOOKUP_CSV",
+            str(_REPO_ROOT / "data" / "reference_nutrition_lookup.csv"),
+        )
+    )
+    reference_nutrition_fuzzy_min_score: float = float(
+        os.getenv("REFERENCE_NUTRITION_FUZZY_MIN_SCORE", "72")
+    )
+    reference_nutrition_lookup_enabled: bool = os.getenv(
+        "REFERENCE_NUTRITION_LOOKUP_ENABLED", "true"
+    ).lower() in ("1", "true", "yes", "on")
+
+    # KNPM official per-category nutrient limits (g per 100 g/ml) — not product nutrition values
+    knpm_category_threshold_csv: Path = Path(
+        os.getenv(
+            "KNPM_CATEGORY_THRESHOLD_CSV",
+            str(_REPO_ROOT / "data" / "knpm_category_threshold.csv"),
+        )
+    )
+    knpm_category_fuzzy_min_score: float = float(
+        os.getenv("KNPM_CATEGORY_FUZZY_MIN_SCORE", "55")
+    )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

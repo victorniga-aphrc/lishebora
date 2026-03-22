@@ -1,33 +1,57 @@
 from __future__ import annotations
 
-from typing import List
+from typing import TYPE_CHECKING, List, Literal
 
 from app.models import KnpmLabel, NutritionData
+
+if TYPE_CHECKING:
+    from app.services.knpm_category_thresholds import KnpmThresholdRow
+
+# When ``knpm_category_threshold.csv`` is missing or unusable
+_LEGACY_FAT = 7.76
+_LEGACY_SAT_FAT = 6.33
+_LEGACY_SUGAR = 4.7
+_LEGACY_SODIUM = 0.26
 
 
 def classify_with_knpm(
     nutrition: NutritionData | None,
     has_trans_fats: bool,
     has_sweeteners: bool,
+    *,
+    threshold_row: "KnpmThresholdRow | None" = None,
+    thresholds_source: Literal[
+        "csv_fuzzy",
+        "csv_pos_class_bridge",
+        "csv_default_composite",
+        "hardcoded_fallback",
+    ]
+    | None = None,
+    category_match_score: float | None = None,
 ) -> KnpmLabel:
     """
-    Very first KNPM-based classifier for demo purposes.
+    KNPM-style classifier using per-100g/ml label (or reference) nutrition.
 
-    - Assumes per-100g / per-100ml values in `nutrition`.
-    - Uses a single set of thresholds (aligned with KNPM snack thresholds)
-      for total sugar, total fat, saturated fat, and sodium.
-    - Returns:
-      - overall classification (FIT_FOR_CONSUMPTION / LESS_HEALTHY / UNKNOWN)
-      - list of specific octagon warnings: HIGH_IN_SUGAR, HIGH_IN_SALT, HIGH_IN_FAT
-      - reasons explaining the decision.
+    When ``threshold_row`` is set, nutrient limits come from the official KNPM
+    category table (``data/knpm_category_threshold.csv``). Otherwise legacy
+    fixed thresholds are used (same numeric defaults as before the CSV existed).
 
-    NOTE: This is a simplified implementation for the demo. In the future we
-    will:
-      - load per-category thresholds from KNPM tables,
-      - vary thresholds by KNPM category (1–11),
-      - extend octagon types if MoH adds more.
+    Ingredient gates (trans fat, non-nutritive sweeteners) apply regardless.
     """
-    # If we have no nutrition data, we cannot apply KNPM thresholds.
+    meta_kwargs = {
+        "knpm_category_number": None,
+        "knpm_category_name": None,
+        "knpm_category_match_score": None,
+        "knpm_thresholds_source": thresholds_source,
+    }
+
+    if threshold_row is not None:
+        meta_kwargs["knpm_category_number"] = threshold_row.category_number
+        meta_kwargs["knpm_category_name"] = threshold_row.category_name
+        if thresholds_source == "csv_fuzzy":
+            meta_kwargs["knpm_category_match_score"] = category_match_score
+
+    # If we have no nutrition data, we cannot apply KNPM numeric thresholds.
     if nutrition is None:
         return KnpmLabel(
             classification="UNKNOWN",
@@ -37,10 +61,27 @@ def classify_with_knpm(
                 "Nutrition facts table not found on the label. "
                 "KNPM-based classification cannot be applied."
             ),
+            **meta_kwargs,
         )
 
     octagons: List[str] = []
     reasons: List[str] = []
+
+    if threshold_row is not None:
+        fat_threshold = threshold_row.total_fat_g
+        sat_fat_threshold = threshold_row.saturated_fat_g
+        sugar_threshold = threshold_row.total_sugar_g
+        sodium_threshold = threshold_row.sodium_g
+        cat_label = (
+            f"{threshold_row.category_name} (KNPM category {threshold_row.category_number})"
+        )
+    else:
+        fat_threshold = _LEGACY_FAT
+        sat_fat_threshold = _LEGACY_SAT_FAT
+        sugar_threshold = _LEGACY_SUGAR
+        sodium_threshold = _LEGACY_SODIUM
+        cat_label = "general reference thresholds (legacy)"
+        meta_kwargs["knpm_thresholds_source"] = "hardcoded_fallback"
 
     # 1. Ingredient gate: trans fats and artificial sweeteners
     if has_trans_fats:
@@ -49,52 +90,49 @@ def classify_with_knpm(
             "Trans fats detected in the ingredients list, which are discouraged by KNPM."
         )
     if has_sweeteners:
-        # In the KNPM logic, products with artificial sweeteners are treated as less healthy.
         octagons.append("HIGH_IN_SUGAR")
         reasons.append(
             "Non-nutritive/artificial sweeteners detected in the ingredients list."
         )
 
-    # 2. Nutrient thresholds (simplified, snack-like defaults from idea.md / WORKFLOW.md)
-    # These are used for now for any product where nutrition is available.
-    sugar_threshold = 4.7   # g per 100g
-    fat_threshold = 7.76    # g per 100g
-    sat_fat_threshold = 6.33  # g per 100g
-    sodium_threshold = 0.26   # g per 100g
+    # 2. Nutrient thresholds (per category when available)
+    if sugar_threshold is not None and nutrition.total_sugar is not None:
+        if nutrition.total_sugar > sugar_threshold:
+            if "HIGH_IN_SUGAR" not in octagons:
+                octagons.append("HIGH_IN_SUGAR")
+            reasons.append(
+                f"Total sugar {nutrition.total_sugar:.2f} g/100g exceeds KNPM limit for "
+                f"{cat_label}: {sugar_threshold} g/100g."
+            )
 
-    # Sugar
-    if nutrition.total_sugar is not None and nutrition.total_sugar > sugar_threshold:
-        if "HIGH_IN_SUGAR" not in octagons:
-            octagons.append("HIGH_IN_SUGAR")
-        reasons.append(
-            f"Total sugar {nutrition.total_sugar:.2f} g/100g exceeds KNPM threshold {sugar_threshold:.2f} g/100g."
-        )
-
-    # Fat / saturated fat
     high_fat = False
-    if nutrition.total_fat is not None and nutrition.total_fat > fat_threshold:
-        high_fat = True
-        reasons.append(
-            f"Total fat {nutrition.total_fat:.2f} g/100g exceeds KNPM threshold {fat_threshold:.2f} g/100g."
-        )
-    if nutrition.saturated_fat is not None and nutrition.saturated_fat > sat_fat_threshold:
-        high_fat = True
-        reasons.append(
-            f"Saturated fat {nutrition.saturated_fat:.2f} g/100g exceeds KNPM threshold {sat_fat_threshold:.2f} g/100g."
-        )
+    if fat_threshold is not None and nutrition.total_fat is not None:
+        if nutrition.total_fat > fat_threshold:
+            high_fat = True
+            reasons.append(
+                f"Total fat {nutrition.total_fat:.2f} g/100g exceeds KNPM limit for "
+                f"{cat_label}: {fat_threshold} g/100g."
+            )
+    if sat_fat_threshold is not None and nutrition.saturated_fat is not None:
+        if nutrition.saturated_fat > sat_fat_threshold:
+            high_fat = True
+            reasons.append(
+                f"Saturated fat {nutrition.saturated_fat:.2f} g/100g exceeds KNPM limit for "
+                f"{cat_label}: {sat_fat_threshold} g/100g."
+            )
     if high_fat and "HIGH_IN_FAT" not in octagons:
         octagons.append("HIGH_IN_FAT")
 
-    # Sodium (salt)
-    if nutrition.sodium is not None and nutrition.sodium > sodium_threshold:
-        if "HIGH_IN_SALT" not in octagons:
-            octagons.append("HIGH_IN_SALT")
-        reasons.append(
-            f"Sodium {nutrition.sodium:.2f} g/100g exceeds KNPM threshold {sodium_threshold:.2f} g/100g."
-        )
+    if sodium_threshold is not None and nutrition.sodium is not None:
+        if nutrition.sodium > sodium_threshold:
+            if "HIGH_IN_SALT" not in octagons:
+                octagons.append("HIGH_IN_SALT")
+            reasons.append(
+                f"Sodium {nutrition.sodium:.2f} g/100g exceeds KNPM limit for "
+                f"{cat_label}: {sodium_threshold} g/100g."
+            )
 
     # If ALL numeric nutrition info is missing (no values at all), treat as unknown.
-    # We check core KNPM nutrients plus other macronutrients and additional_nutrients.
     if (
         nutrition.energy_kcal is None
         and nutrition.total_sugar is None
@@ -115,22 +153,24 @@ def classify_with_knpm(
                 "No numeric nutrition information available on the label. "
                 "KNPM-based classification cannot be applied."
             ),
+            **meta_kwargs,
         )
 
     if not octagons:
-        # All good according to the thresholds and ingredient flags
         return KnpmLabel(
             classification="FIT_FOR_CONSUMPTION",
             octagons=[],
-            reasons=["All nutrients of concern are within KNPM thresholds."],
+            reasons=[
+                f"All assessed nutrients of concern are within KNPM limits for {cat_label}."
+            ],
             message=None,
+            **meta_kwargs,
         )
 
-    # One or more warnings → overall classification is less healthy
     return KnpmLabel(
         classification="LESS_HEALTHY",
         octagons=octagons,
         reasons=reasons,
         message=None,
+        **meta_kwargs,
     )
-

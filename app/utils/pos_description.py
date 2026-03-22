@@ -14,6 +14,31 @@ _MULTI = re.compile(
     r"\b\d+\s*X\s*\d+(?:\.\d+)?\s*(?:ML|LTR|CL|KG|KGS|GM|GR|GMS|G|L)\b",
     re.IGNORECASE,
 )
+# Volume×count (reverse order): 1.5LX6, 1LX6, 500MLX6, 12 X 500 ML (overlap handled by _MULTI first)
+_VOL_X_COUNT = re.compile(
+    r"\b\d+(?:\.\d+)?\s*(?:ML|LTR)\s*X\s*\d+\b|\b\d+(?:\.\d+)?\s*L\s*X\s*\d+\b",
+    re.IGNORECASE,
+)
+# Stray codes like G14G (not a normal \d+G size)
+_G_NUM_G = re.compile(r"\bG\d+(?:\.\d+)?G\b", re.IGNORECASE)
+# Piece/pack with apostrophe: 10'S, 6'S (also glued: …EUCALYPTUS10'S)
+_APOST_S = re.compile(
+    r"\b\d+\s*'S\b|(?<=[A-Z])\d+\s*'S\b",
+    re.IGNORECASE,
+)
+# Size jammed to preceding letters (no space): POUCH200ML, OIL500G, DRESS237G
+_GLUED_SIZE_UNITS = re.compile(
+    r"(?<=[A-Z])\d+(?:\.\d+)?\s*(?:ML|LTR|CL|KG|KGS|GM|GR|GMS)\b",
+    re.IGNORECASE,
+)
+_GLUED_SIZE_G = re.compile(
+    r"(?<=[A-Z])\d+(?:\.\d+)?\s*G\b(?![A-Z0-9/])",
+    re.IGNORECASE,
+)
+_GLUED_SIZE_L = re.compile(
+    r"(?<=[A-Z])\d+(?:\.\d+)?\s*L\b(?![A-Z0-9/])",
+    re.IGNORECASE,
+)
 _SIZE_UNITS = re.compile(
     r"\b\d+(?:\.\d+)?\s*(?:ML|LTR|CL|KG|KGS|GM|GR|GMS)\b",
     re.IGNORECASE,
@@ -128,6 +153,7 @@ def normalize_pack_description(raw: str) -> str:
     for _ in range(18):
         prev = s
         s = _MULTI.sub(" ", s)
+        s = _VOL_X_COUNT.sub(" ", s)
         s = _STAR_WEIGHT_SLASH.sub(" ", s)
         s = _STAR_V_SLASH.sub(" ", s)
         s = _STAR_THEN_WORD.sub(" ", s)
@@ -135,6 +161,12 @@ def normalize_pack_description(raw: str) -> str:
         s = _SIZE_L.sub(" ", s)
         s = _G_WITH_SLASH.sub(" ", s)
         s = _SIZE_G.sub(" ", s)
+        # G##G before _GLUED_SIZE_G so "G14G" is not split into stray "G" + "14G"
+        s = _G_NUM_G.sub(" ", s)
+        s = _GLUED_SIZE_UNITS.sub(" ", s)
+        s = _GLUED_SIZE_L.sub(" ", s)
+        s = _GLUED_SIZE_G.sub(" ", s)
+        s = _APOST_S.sub(" ", s)
         s = _PCS.sub(" ", s)
         s = _COUNT_THEN_NUMSLASH.sub(" ", s)
         s = _NUM_SLASH.sub(" ", s)

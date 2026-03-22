@@ -111,6 +111,12 @@ def save_ocr_result_to_db(
         merged_raw["supermarket_classification"] = (
             ocr_result.supermarket_classification.model_dump()
         )
+    if ocr_result.reference_nutrition_match is not None:
+        merged_raw["reference_nutrition_match"] = (
+            ocr_result.reference_nutrition_match.model_dump()
+        )
+    if ocr_result.extraction_metadata.nutrition_from_reference_lookup:
+        merged_raw["nutrition_from_reference_lookup"] = True
 
     if merged_raw:
         merged_raw["class_name"] = ocr_result.class_name

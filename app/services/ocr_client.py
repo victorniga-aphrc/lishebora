@@ -18,7 +18,11 @@ from app.models import (
 from app.services.classification_consistency import (
     warning_pos_taxonomy_vs_label_sugar,
 )
+from app.services.knpm_category_thresholds import (
+    resolve_knpm_thresholds_for_extraction,
+)
 from app.services.knpm_labeller import classify_with_knpm
+from app.services.reference_nutrition_lookup import lookup_reference_nutrition
 from app.services.supermarket_lookup import lookup_supermarket_classification
 
 
@@ -125,17 +129,47 @@ def _parse_nutrition_data(data: dict) -> NutritionData | None:
     )
 
 
+def _nutrition_has_numeric_values(nutrition: NutritionData | None) -> bool:
+    """True if any per-100g number is present (same idea as KNPM labeller)."""
+    if nutrition is None:
+        return False
+    if nutrition.additional_nutrients:
+        return True
+    return any(
+        getattr(nutrition, field) is not None
+        for field in (
+            "energy_kcal",
+            "total_fat",
+            "saturated_fat",
+            "trans_fat",
+            "total_sugar",
+            "sodium",
+            "protein",
+            "carbohydrates",
+            "fiber",
+        )
+    )
+
+
+def _optional_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    s = str(value).strip()
+    return s or None
+
+
 def _parse_product_info(data: dict) -> ProductInfo | None:
     """Parse product information from the model's JSON response."""
     product_dict = data.get("product_info")
     if not product_dict or not isinstance(product_dict, dict):
         return None
-    
+
     return ProductInfo(
-        name=product_dict.get("name") if product_dict.get("name") else None,
-        brand=product_dict.get("brand") if product_dict.get("brand") else None,
-        category=product_dict.get("category") if product_dict.get("category") else None,
-        barcode=product_dict.get("barcode") if product_dict.get("barcode") else None,
+        name=_optional_str(product_dict.get("name")),
+        brand=_optional_str(product_dict.get("brand")),
+        category=_optional_str(product_dict.get("category")),
+        visual_product_type=_optional_str(product_dict.get("visual_product_type")),
+        barcode=_optional_str(product_dict.get("barcode")),
     )
 
 
@@ -224,8 +258,13 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
         "You receive an image of a food product label and must extract:\n"
         "1. Ingredients list (if visible)\n"
         "2. Nutrition facts table (if visible) - extract ALL nutrients visible in the table\n"
-        "3. Product name, brand, category (if visible)\n"
-        "4. Barcode (if visible)\n\n"
+        "3. Product name, brand, category from printed text (if visible)\n"
+        "4. Barcode (if visible)\n"
+        "5. Visual product type: infer from the **whole image** (pack shape, photos, logos, "
+        "layout, colours) what the product **is** in plain English when text does not give a "
+        "clear category, or to add detail (e.g. \"orange juice drink\", \"instant noodle cup\", "
+        "\"chocolate wafer\"). Do NOT invent retailer/POS class codes. Use null if you cannot "
+        "reasonably infer it.\n\n"
         "Return a single JSON object with these keys:\n"
         '   - \"ingredients\": array of strings (empty array if not found)\n'
         '   - \"nutrition_per_100g\": object with:\n'
@@ -234,7 +273,8 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
         '     * \"additional_nutrients\": object with ALL other nutrients found in the table '
         '(e.g., potassium, calcium, iron, vitamins, etc.) as key-value pairs\n'
         '       Example: {\"potassium\": 200, \"calcium\": 50, \"iron\": 2.5}\n'
-        '   - \"product_info\": object with keys: name, brand, category, barcode (use null if not found)\n'
+        '   - \"product_info\": object with keys: name, brand, category, barcode, '
+        'visual_product_type (use null for any unknown field; always include all keys)\n'
         '   - \"raw_text\": string with all text you read from the label\n'
         '   - \"extraction_metadata\": object with boolean keys: ingredients_found, '
         'nutrition_facts_found, product_name_found, barcode_found\n\n'
@@ -266,7 +306,7 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
             response = client.chat.completions.create(
                 model=settings.openai_model,
                 temperature=0.1,
-                max_tokens=1024,
+                max_tokens=1280,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {
@@ -335,16 +375,38 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
 
     # Parse all fields
     ingredients = _parse_ingredients_from_model_text(text_response)
-    nutrition_data = _parse_nutrition_data(parsed)
+    label_nutrition = _parse_nutrition_data(parsed)
+    nutrition_data = label_nutrition
     product_info = _parse_product_info(parsed)
-    
+
+    reference_nutrition_match = None
+    nutrition_from_ref = False
+    if settings.reference_nutrition_lookup_enabled and not _nutrition_has_numeric_values(
+        nutrition_data
+    ):
+        ref_nut, ref_meta = lookup_reference_nutrition(product_info)
+        if ref_nut is not None and ref_meta is not None:
+            nutrition_data = ref_nut
+            reference_nutrition_match = ref_meta
+            nutrition_from_ref = True
+
     # Get extraction metadata
     metadata_dict = parsed.get("extraction_metadata", {})
+    label_nutrition_present = label_nutrition is not None
     extraction_metadata = ExtractionMetadata(
         ingredients_found=metadata_dict.get("ingredients_found", len(ingredients) > 0),
-        nutrition_facts_found=metadata_dict.get("nutrition_facts_found", nutrition_data is not None),
-        product_name_found=metadata_dict.get("product_name_found", product_info is not None and product_info.name is not None),
-        barcode_found=metadata_dict.get("barcode_found", product_info is not None and product_info.barcode is not None),
+        nutrition_facts_found=metadata_dict.get(
+            "nutrition_facts_found", label_nutrition_present
+        ),
+        product_name_found=metadata_dict.get(
+            "product_name_found",
+            product_info is not None and product_info.name is not None,
+        ),
+        barcode_found=metadata_dict.get(
+            "barcode_found",
+            product_info is not None and product_info.barcode is not None,
+        ),
+        nutrition_from_reference_lookup=nutrition_from_ref,
     )
     
     # Get raw text
@@ -359,13 +421,23 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
     
     if not extraction_metadata.nutrition_facts_found:
         warnings.append("Nutrition facts table not found in image")
+
+    if nutrition_from_ref:
+        warnings.append(
+            "Nutrition per 100 g/ml was filled from the in-app reference database "
+            "(product name match), not read from the label image."
+        )
+
+    if not _nutrition_has_numeric_values(nutrition_data):
         errors.append("Cannot perform KNPM labeling - nutrition data required")
-    
+
     if not extraction_metadata.product_name_found:
         warnings.append("Product name not found in image")
-    
-    # If both ingredients and nutrition are missing, add error
-    if not extraction_metadata.ingredients_found and not extraction_metadata.nutrition_facts_found:
+
+    # If both ingredients and usable nutrition are missing, add error
+    if not extraction_metadata.ingredients_found and not _nutrition_has_numeric_values(
+        nutrition_data
+    ):
         errors.append("Insufficient data extracted - both ingredients and nutrition facts are missing")
         if not raw_text_value:
             errors.append("No readable text found in image")
@@ -385,24 +457,50 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
         if has_sweeteners:
             warnings.append("Artificial sweeteners detected in ingredients list")
 
-    # Apply simplified KNPM-based classification (only when nutrition data is available).
+    # POS taxonomy first so KNPM can use subclass/class text in category-threshold hints.
+    supermarket_classification = lookup_supermarket_classification(product_info)
+
+    threshold_row, thr_source, thr_score = resolve_knpm_thresholds_for_extraction(
+        product_info,
+        supermarket_classification,
+    )
+    if thr_source == "csv_default_composite":
+        warnings.append(
+            "KNPM nutrient limits used: category 6.0 (Composite foods) — no specific "
+            "food category matched from label/POS hints; thresholds may be stricter or looser "
+            "than the true KNPM category."
+        )
+    elif thr_source == "csv_pos_class_bridge":
+        warnings.append(
+            "KNPM category limits were chosen from retailer POS class → KNPM mapping "
+            "(fuzzy match to MoH category names was inconclusive). "
+            "Review `knpm_category_number` in the response."
+        )
+
     knpm_label = classify_with_knpm(
         nutrition=nutrition_data,
         has_trans_fats=has_trans_fats if ingredients else False,
         has_sweeteners=has_sweeteners if ingredients else False,
+        threshold_row=threshold_row,
+        thresholds_source=thr_source,
+        category_match_score=thr_score,
     )
 
     # If we could not classify due to missing nutrition facts, surface that message as a warning.
     if knpm_label.message:
         warnings.append(knpm_label.message)
 
-    supermarket_classification = lookup_supermarket_classification(product_info)
-
     pos_sugar_mismatch = warning_pos_taxonomy_vs_label_sugar(
         knpm_label, supermarket_classification
     )
     if pos_sugar_mismatch:
         warnings.append(pos_sugar_mismatch)
+
+    model_raw: dict[str, Any] = {"output": text_response}
+    if reference_nutrition_match is not None:
+        model_raw["reference_nutrition_match"] = (
+            reference_nutrition_match.model_dump()
+        )
 
     return OcrResult(
         ingredients=ingredients,
@@ -412,9 +510,10 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
         extraction_metadata=extraction_metadata,
         warnings=warnings,
         errors=errors,
-        model_raw_output={"output": text_response},
+        model_raw_output=model_raw,
         knpm_label=knpm_label,
         supermarket_classification=supermarket_classification,
+        reference_nutrition_match=reference_nutrition_match,
     )
 
 
