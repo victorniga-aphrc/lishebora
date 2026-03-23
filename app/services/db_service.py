@@ -117,6 +117,14 @@ def save_ocr_result_to_db(
         )
     if ocr_result.extraction_metadata.nutrition_from_reference_lookup:
         merged_raw["nutrition_from_reference_lookup"] = True
+    if ocr_result.nova_bilstm_prediction is not None:
+        merged_raw["nova_bilstm_prediction"] = (
+            ocr_result.nova_bilstm_prediction.model_dump()
+        )
+    if ocr_result.foodclasses_bilstm_prediction is not None:
+        merged_raw["foodclasses_bilstm_prediction"] = (
+            ocr_result.foodclasses_bilstm_prediction.model_dump()
+        )
 
     if merged_raw:
         merged_raw["class_name"] = ocr_result.class_name

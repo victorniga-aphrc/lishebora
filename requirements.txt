@@ -10,4 +10,8 @@ psycopg2-binary==2.9.10
 alembic==1.14.0
 anyio==4.6.0
 rapidfuzz==3.11.0
+scikit-learn==1.4.2
 
+# Keras / TensorFlow — unpickles models/novaclasses_model.pkl (BiLSTM product-name model).
+# Use Python 3.10–3.12 where official TF wheels exist (many versions skip 3.13+).
+tensorflow>=2.15,<2.19

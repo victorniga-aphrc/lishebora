@@ -1,9 +1,13 @@
-feat: enrich /extract with reference nutrition, KNPM limits, and taxonomy hints
+feat: reference nutrition, KNPM category limits, POS/visual hints, BiLSTM taxonomy
 
-- Fill nutrition_per_100g from reference_nutrition_lookup when OCR has no usable numbers
-- Resolve KNPM per-category limits from knpm_category_threshold.csv (multi-hint fuzzy,
-  POS class bridge e.g. BREADS→2.2, composite 6.0 fallback)
-- Add visual_product_type for vision-informed POS taxonomy matching
-- Extend normalize_pack_description (glued sizes, 500MLX6, G14G, 10'S)
-- Persist supermarket_classification + reference_nutrition_match on scans
-- Add docs/PIPELINE.md (Mermaid); README/CHANGELOG alignment
+- Reference nutrition: fill nutrition_per_100g from reference_nutrition_lookup when OCR
+  has no usable numbers; normalize_pack_description extended (glued sizes, multipacks,
+  G##G, 10'S); persist reference_nutrition_match on scans
+- KNPM: load knpm_category_threshold.csv; multi-hint fuzzy + POS class bridge (BREADS→2.2);
+  resolve_knpm_thresholds_for_extraction; knpm_label metadata fields
+- Supermarket: visual_product_type for taxonomy; POS before KNPM in ocr_client
+- BiLSTM: novaclasses (NOVA-only), foodclasses_model.pkl (class/subclass/nova);
+  foodclasses_bilstm_inference with POS-first hybrid (FOODCLASSES_BILSTM_POS_FIRST),
+  confidence thresholds, weak-POS fallback; sklearn==1.4.2 for label_encoders.pkl
+- Docs: docs/PIPELINE.md, TESTING_NOVACLASSES_MODEL.md, README env tables; inspect scripts
+- Default tokenizer path models/tokenizer.pkl; model rename foodclasses_model.pkl

@@ -121,6 +121,43 @@ class ReferenceNutritionMatch(BaseModel):
     )
 
 
+class NovaBiLstmPrediction(BaseModel):
+    """NOVA class from the name-only BiLSTM (``novaclasses_model.pkl``)."""
+
+    nova_label: str = Field(..., description="Human-readable NOVA category")
+    nova_index: int = Field(..., description="Argmax class index (0..3 for current checkpoint)")
+    probabilities: List[float] = Field(
+        default_factory=list,
+        description="Softmax probabilities aligned with label indices",
+    )
+    confidence: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Probability of the predicted class",
+    )
+    input_text: str = Field(
+        ...,
+        description="Product string passed to the model (e.g. brand + name)",
+    )
+
+
+class FoodclassesBiLstmPrediction(BaseModel):
+    """Class/subclass/NOVA from multi-head BiLSTM (``foodclasses_model.pkl``)."""
+
+    class_name: str | None = Field(default=None, description="Predicted class_name label")
+    subclass_name: str | None = Field(
+        default=None, description="Predicted subclass_name label"
+    )
+    nova_label: str | None = Field(default=None, description="Predicted NOVA label")
+    class_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    subclass_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    nova_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    input_text: str = Field(
+        ..., description="Product string passed to the model (e.g. brand + name)"
+    )
+
+
 class SupermarketClassification(BaseModel):
     """
     Supermarket POS taxonomy for the scanned product.
@@ -258,6 +295,14 @@ class OcrResult(BaseModel):
     reference_nutrition_match: ReferenceNutritionMatch | None = Field(
         default=None,
         description="Set when nutrition_per_100g was filled from reference_nutrition_lookup.csv",
+    )
+    nova_bilstm_prediction: NovaBiLstmPrediction | None = Field(
+        default=None,
+        description="NOVA from BiLSTM on product name when model + tokenizer + labels are available",
+    )
+    foodclasses_bilstm_prediction: FoodclassesBiLstmPrediction | None = Field(
+        default=None,
+        description="Class/subclass/NOVA from multi-head BiLSTM on product name",
     )
 
     @model_validator(mode="after")

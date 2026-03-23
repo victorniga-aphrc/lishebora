@@ -21,7 +21,15 @@ from app.services.classification_consistency import (
 from app.services.knpm_category_thresholds import (
     resolve_knpm_thresholds_for_extraction,
 )
+from app.services.foodclasses_bilstm_inference import (
+    merge_foodclasses_with_pos,
+    predict_foodclasses_from_product_text,
+)
 from app.services.knpm_labeller import classify_with_knpm
+from app.services.nova_bilstm_inference import (
+    maybe_fill_supermarket_nova,
+    predict_nova_from_product_text,
+)
 from app.services.reference_nutrition_lookup import lookup_reference_nutrition
 from app.services.supermarket_lookup import lookup_supermarket_classification
 
@@ -459,6 +467,40 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
 
     # POS taxonomy first so KNPM can use subclass/class text in category-threshold hints.
     supermarket_classification = lookup_supermarket_classification(product_info)
+    foodclasses_bilstm_prediction = None
+    if settings.foodclasses_bilstm_enabled and product_info is not None:
+        foodclasses_bilstm_prediction = predict_foodclasses_from_product_text(
+            product_info.name,
+            product_info.brand,
+        )
+        if foodclasses_bilstm_prediction is not None:
+            c_ok = (foodclasses_bilstm_prediction.class_confidence or 0.0) >= float(
+                settings.foodclasses_bilstm_min_class_confidence
+            )
+            s_ok = (foodclasses_bilstm_prediction.subclass_confidence or 0.0) >= float(
+                settings.foodclasses_bilstm_min_subclass_confidence
+            )
+            if not c_ok or not s_ok:
+                warnings.append(
+                    "Foodclasses BiLSTM confidence below threshold; keeping POS taxonomy "
+                    f"(class={foodclasses_bilstm_prediction.class_confidence:.3f}, "
+                    f"subclass={foodclasses_bilstm_prediction.subclass_confidence:.3f})."
+                )
+        supermarket_classification = merge_foodclasses_with_pos(
+            supermarket_classification,
+            foodclasses_bilstm_prediction,
+        )
+
+    nova_bilstm_prediction = None
+    if settings.nova_bilstm_enabled and product_info is not None:
+        nova_bilstm_prediction = predict_nova_from_product_text(
+            product_info.name,
+            product_info.brand,
+        )
+        supermarket_classification = maybe_fill_supermarket_nova(
+            supermarket_classification,
+            nova_bilstm_prediction,
+        )
 
     threshold_row, thr_source, thr_score = resolve_knpm_thresholds_for_extraction(
         product_info,
@@ -501,6 +543,12 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
         model_raw["reference_nutrition_match"] = (
             reference_nutrition_match.model_dump()
         )
+    if nova_bilstm_prediction is not None:
+        model_raw["nova_bilstm_prediction"] = nova_bilstm_prediction.model_dump()
+    if foodclasses_bilstm_prediction is not None:
+        model_raw["foodclasses_bilstm_prediction"] = (
+            foodclasses_bilstm_prediction.model_dump()
+        )
 
     return OcrResult(
         ingredients=ingredients,
@@ -514,6 +562,8 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
         knpm_label=knpm_label,
         supermarket_classification=supermarket_classification,
         reference_nutrition_match=reference_nutrition_match,
+        nova_bilstm_prediction=nova_bilstm_prediction,
+        foodclasses_bilstm_prediction=foodclasses_bilstm_prediction,
     )
 
 

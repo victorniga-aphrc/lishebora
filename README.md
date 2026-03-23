@@ -14,6 +14,7 @@ This repository contains the backend API for the Lishebora nutrition labelling t
 - [API Documentation](#api-documentation)
 - [How It Works](#how-it-works)
 - [Pipeline flow (diagram)](docs/PIPELINE.md)
+- [Testing the NOVA / BiLSTM model](docs/TESTING_NOVACLASSES_MODEL.md)
 - [Configuration](#configuration)
 - [Project Structure](#project-structure)
 - [Testing](#testing)
@@ -137,6 +138,8 @@ source .venv/bin/activate  # On Windows PowerShell: .venv\Scripts\Activate.ps1
 ```bash
 pip install -r requirements.txt
 ```
+
+This includes **TensorFlow** (for `models/novaclasses_model.pkl` / future BiLSTM integration). Use **Python 3.10–3.12** if TensorFlow fails to install on very new Python versions.
 
 4. **Set up environment variables**
 
@@ -513,6 +516,24 @@ The parsing functions handle multiple data types:
 | `REFERENCE_NUTRITION_LOOKUP_ENABLED` | No | `true` | Set `false` to disable reference nutrition fallback on `/extract` |
 | `KNPM_CATEGORY_THRESHOLD_CSV` | No | `data/knpm_category_threshold.csv` | Official KNPM **per-category nutrient limits** (g/100 g/ml) for “high in” assessments — not product nutrition values |
 | `KNPM_CATEGORY_FUZZY_MIN_SCORE` | No | `55` | Min fuzzy score to match OCR/POS hints to a KNPM `category_name` |
+| `NOVA_BILSTM_ENABLED` | No | `false` | Set `true` when tokenizer artifacts are present to run NOVA BiLSTM on product name |
+| `NOVA_BILSTM_MODEL_PKL` | No | `models/novaclasses_model.pkl` | Pickled Keras model |
+| `NOVA_BILSTM_TOKENIZER_PKL` | No | `models/tokenizer.pkl` | Pickled `Tokenizer` from training |
+| `NOVA_BILSTM_LABELS_JSON` | No | `models/nova_labels.json` | `"0"`..`"3"` → display strings (order must match training) |
+| `NOVA_BILSTM_LABEL_ENCODERS_PKL` | No | `models/label_encoders.pkl` | Optional fallback source for NOVA labels (uses sklearn LabelEncoder classes_) |
+| `NOVA_BILSTM_FILL_POS_NOVA` | No | `false` | If `true`, copy BiLSTM NOVA into `supermarket_classification.nova` when POS has no NOVA |
+| `FOODCLASSES_BILSTM_ENABLED` | No | `true` | Enable multi-head BiLSTM for class/subclass/nova from product name |
+| `FOODCLASSES_BILSTM_MODEL_PKL` | No | `models/foodclasses_model.pkl` | Multi-head Keras model (class, subclass, nova) |
+| `FOODCLASSES_BILSTM_TOKENIZER_PKL` | No | `models/tokenizer.pkl` | Tokenizer used by the foodclasses model |
+| `FOODCLASSES_BILSTM_LABEL_ENCODERS_PKL` | No | `models/label_encoders.pkl` | LabelEncoder map for class/subclass/nova decoding |
+| `FOODCLASSES_BILSTM_POS_FIRST` | No | `true` | Hybrid mode: keep strong POS matches, use model only when POS is weak/missing |
+| `FOODCLASSES_BILSTM_POS_WEAK_MAX_SCORE` | No | `70` | POS fuzzy score below this is treated as weak in POS-first mode |
+| `FOODCLASSES_BILSTM_PREFER_OVER_POS` | No | `true` | When enabled, use model class/subclass/nova as primary over POS lookup |
+| `FOODCLASSES_BILSTM_MIN_CLASS_CONFIDENCE` | No | `0.60` | Minimum class confidence to accept model taxonomy |
+| `FOODCLASSES_BILSTM_MIN_SUBCLASS_CONFIDENCE` | No | `0.55` | Minimum subclass confidence to accept model taxonomy |
+| `FOODCLASSES_BILSTM_MIN_NOVA_CONFIDENCE` | No | `0.40` | Minimum NOVA confidence to overwrite/fill NOVA from foodclasses model |
+
+> **Model compatibility note:** `label_encoders.pkl` was produced with scikit-learn `1.4.2`; runtime pins `scikit-learn==1.4.2` in `requirements.txt` to avoid unpickle compatibility warnings.
 
 ### Configuration File
 
@@ -542,12 +563,21 @@ lishebora_vic/
 │       ├── knpm_category_thresholds.py # Load official per-category limits CSV
 │       ├── supermarket_lookup.py        # POS class/subclass/NOVA from lookup CSV
 │       ├── reference_nutrition_lookup.py # Reference per-100g CSV when label nutrition is empty
+│       ├── nova_bilstm_inference.py      # Product name → NOVA (Keras BiLSTM, optional)
+│       ├── foodclasses_bilstm_inference.py # Product name → class/subclass/nova (primary recommender signal)
 │       └── db_service.py                # Persist scans / products / nutrition
 ├── alembic/                 # Migrations
 ├── octagon_images/          # SVG assets for demo (high sugar/salt/fat)
 ├── ingredient_image_data/   # Sample test images (tracked in git)
 ├── docs/
 │   └── PIPELINE.md          # Pipeline flow, Mermaid diagrams, data/env reference
+├── models/
+│   ├── README.md            # BiLSTM artifacts, tokenizer, labels, env flags
+│   ├── novaclasses_model.pkl  # Keras NOVA model (4-class head)
+│   ├── foodclasses_model.pkl     # Keras multi-head model (class/subclass/nova)
+│   ├── nova_labels.json       # NOVA label map (or derive from label_encoders.pkl)
+│   ├── tokenizer.pkl          # Tokenizer from training
+│   └── label_encoders.pkl     # LabelEncoder bundle from training (optional for NOVA labels)
 ├── data/
 │   ├── huge_data.csv                    # Wide POS export (many columns)
 │   ├── product_class_subclass_lookup.csv # Slim POS lookup: description → class/subclass/nova
@@ -568,10 +598,11 @@ lishebora_vic/
 - **`app/services/ocr_client.py`**: OpenAI vision, reference nutrition fallback, POS lookup, KNPM resolution + classification
 - **`app/services/knpm_labeller.py`**: Compare nutrients to resolved KNPM limits → `knpm_label`
 - **`app/services/knpm_category_thresholds.py`**: Load `knpm_category_threshold.csv`; fuzzy + POS class bridge → threshold row
-- **`app/models.py`**: `OcrResult`, `KnpmLabel`, `ReferenceNutritionMatch`, nutrition and product models
+- **`app/models.py`**: `OcrResult`, `KnpmLabel`, `ReferenceNutritionMatch`, `NovaBiLstmPrediction`, nutrition and product models
 - **`app/config.py`**: `OPENAI_*`, `DATABASE_URL`, `SUPERMARKET_*`, `REFERENCE_NUTRITION_*`, `KNPM_CATEGORY_*`, legacy Replicate vars
 - **`app/services/supermarket_lookup.py`**: Load lookup CSV; exact + fuzzy match to `supermarket_classification`
 - **`app/services/reference_nutrition_lookup.py`**: Load reference nutrition CSV; fill `nutrition_per_100g` when OCR has no usable numbers
+- **`app/services/nova_bilstm_inference.py`**: Optional NOVA from product name (BiLSTM)
 - **`docs/PIPELINE.md`**: Pipeline diagrams and step-by-step flow
 
 ### Supermarket product class / subclass (data pipeline)
