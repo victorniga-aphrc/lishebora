@@ -31,6 +31,7 @@ from app.services.nova_bilstm_inference import (
     predict_nova_from_product_text,
 )
 from app.services.reference_nutrition_lookup import lookup_reference_nutrition
+from app.services.recommendation_explainer import attach_healthier_recommendations
 from app.services.supermarket_lookup import lookup_supermarket_classification
 
 
@@ -241,7 +242,10 @@ def _parse_ingredients_from_model_text(text: str) -> List[Ingredient]:
     return ingredients
 
 
-async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
+async def extract_ingredients_from_image(
+    image_bytes: bytes,
+    user_goal: str | None = None,
+) -> OcrResult:
     """
     Core OCR entry point using GPT-4.1-mini via OpenAI directly.
 
@@ -550,7 +554,7 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
             foodclasses_bilstm_prediction.model_dump()
         )
 
-    return OcrResult(
+    result = OcrResult(
         ingredients=ingredients,
         nutrition_per_100g=nutrition_data,
         product_info=product_info,
@@ -564,6 +568,12 @@ async def extract_ingredients_from_image(image_bytes: bytes) -> OcrResult:
         reference_nutrition_match=reference_nutrition_match,
         nova_bilstm_prediction=nova_bilstm_prediction,
         foodclasses_bilstm_prediction=foodclasses_bilstm_prediction,
+    )
+    return await attach_healthier_recommendations(
+        result,
+        has_trans_fats=has_trans_fats if ingredients else False,
+        has_sweeteners=has_sweeteners if ingredients else False,
+        user_goal=user_goal,
     )
 
 

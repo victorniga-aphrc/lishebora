@@ -147,6 +147,16 @@ class Settings:
         os.getenv("FOODCLASSES_BILSTM_MIN_NOVA_CONFIDENCE", "0.40")
     )
 
+    # Healthier substitutes (reference catalog + KNPM tiers; optional GenAI blurb)
+    substitute_recommendations_enabled: bool = os.getenv(
+        "SUBSTITUTE_RECOMMENDATIONS_ENABLED", "true"
+    ).lower() in ("1", "true", "yes", "on")
+    substitute_max_results: int = int(os.getenv("SUBSTITUTE_MAX_RESULTS", "5"))
+    substitute_min_results: int = int(os.getenv("SUBSTITUTE_MIN_RESULTS", "3"))
+    substitute_explanation_enabled: bool = os.getenv(
+        "SUBSTITUTE_EXPLANATION_ENABLED", "true"
+    ).lower() in ("1", "true", "yes", "on")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

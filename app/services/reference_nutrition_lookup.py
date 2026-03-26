@@ -212,3 +212,20 @@ def lookup_reference_nutrition(
         sub_type=(raw.get("sub_type") or "").strip() or None,
         form=(raw.get("form") or "").strip() or None,
     )
+
+
+def iter_reference_products_with_nutrition() -> list[tuple[str, NutritionData, dict[str, str]]]:
+    """
+    All reference rows with usable numeric nutrition (for catalog / recommenders).
+
+    Returns tuples of (display product_name, NutritionData, raw CSV row dict).
+    """
+    _load_csv()
+    out: list[tuple[str, NutritionData, dict[str, str]]] = []
+    for norm_key, raw in _data.norm_to_row.items():
+        nut = _row_to_nutrition(raw)
+        if nut is None:
+            continue
+        pname = (raw.get("product_name") or norm_key).strip() or norm_key
+        out.append((pname, nut, raw))
+    return out

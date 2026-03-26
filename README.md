@@ -43,7 +43,7 @@ This section reflects **what you can run and use today** in this repo.
 
 | Area | Status |
 |------|--------|
-| **HTTP API** | `GET /` (demo page), `POST /extract` (image → structured JSON), `GET /health`. Static assets: `/octagon_images/*` for warning SVGs. |
+| **HTTP API** | `GET /` (demo page), `POST /extract` (image → structured JSON), `POST /recommend/substitutes` (JSON → substitute block), `GET /health`. Static assets: `/octagon_images/*` for warning SVGs. |
 | **Vision OCR** | **OpenAI** (default `gpt-4.1-mini`) reads the label image and returns structured JSON—not the primary Replicate path anymore. (`OPENAI_API_KEY` required.) |
 | **Ingredients** | Parsed list of ingredient names (no `confidence` field). |
 | **Nutrition** | Per-100g fields where extractable: energy, fats (incl. saturated/trans), sugar, sodium, protein, carbs, fiber, plus `additional_nutrients` for anything else on the table. |
@@ -320,6 +320,7 @@ http://localhost:8000
 - **Content-Type**: `multipart/form-data`
 - **Body**: 
   - `image` (file): Image file (JPEG, PNG, etc.)
+  - `user_goal` (optional string): Short shopper goal (e.g. *lower salt*) for the substitute **GenAI** explanation when `SUBSTITUTE_EXPLANATION_ENABLED=true`.
 
 **Response**:
 ```json
@@ -384,7 +385,27 @@ http://localhost:8000
 
 When nutrition cannot be evaluated, `classification` may be `"UNKNOWN"` and `message` explains why (e.g. no numeric nutrition on the label).
 
-**Response Model**: `OcrResult`
+When the product is **less healthy** (`classification`: `"LESS_HEALTHY"`), the response may include **`healthier_substitutes`**: tiered products from `reference_nutrition_lookup.csv`, `no_close_substitutes` if search widened beyond the closest subclass, and optional **`explanation`** (OpenAI or template).
+
+---
+
+#### `POST /recommend/substitutes`
+
+**Description**: Recompute **`healthier_substitutes`** (and explanation) from a saved **`OcrResult`** without re-running vision OCR.
+
+**Request**: `application/json`
+```json
+{
+  "ocr_result": { "...": "full OcrResult from a prior /extract" },
+  "user_goal": "I want less sugar for my kids"
+}
+```
+
+**Response**: `HealthierSubstituteResult` (same shape as `OcrResult.healthier_substitutes`).
+
+---
+
+**Response Model**: `OcrResult` (`POST /extract`)
 
 **Status Codes**:
 - `200 OK`: Success
@@ -532,6 +553,10 @@ The parsing functions handle multiple data types:
 | `FOODCLASSES_BILSTM_MIN_CLASS_CONFIDENCE` | No | `0.60` | Minimum class confidence to accept model taxonomy |
 | `FOODCLASSES_BILSTM_MIN_SUBCLASS_CONFIDENCE` | No | `0.55` | Minimum subclass confidence to accept model taxonomy |
 | `FOODCLASSES_BILSTM_MIN_NOVA_CONFIDENCE` | No | `0.40` | Minimum NOVA confidence to overwrite/fill NOVA from foodclasses model |
+| `SUBSTITUTE_RECOMMENDATIONS_ENABLED` | No | `true` | When `true`, `POST /extract` adds `healthier_substitutes` for KNPM **LESS_HEALTHY** scans |
+| `SUBSTITUTE_MAX_RESULTS` | No | `5` | Max substitute rows (3–5 typical) |
+| `SUBSTITUTE_MIN_RESULTS` | No | `3` | Minimum before widening from Tier 1 → 2 → 3 |
+| `SUBSTITUTE_EXPLANATION_ENABLED` | No | `true` | Use OpenAI for a short narrative; otherwise a template (`OPENAI_API_KEY` optional) |
 
 > **Model compatibility note:** `label_encoders.pkl` was produced with scikit-learn `1.4.2`; runtime pins `scikit-learn==1.4.2` in `requirements.txt` to avoid unpickle compatibility warnings.
 
@@ -564,7 +589,9 @@ lishebora_vic/
 │       ├── supermarket_lookup.py        # POS class/subclass/NOVA from lookup CSV
 │       ├── reference_nutrition_lookup.py # Reference per-100g CSV when label nutrition is empty
 │       ├── nova_bilstm_inference.py      # Product name → NOVA (Keras BiLSTM, optional)
-│       ├── foodclasses_bilstm_inference.py # Product name → class/subclass/nova (primary recommender signal)
+│       ├── foodclasses_bilstm_inference.py # Product name → class/subclass/nova (POS hybrid taxonomy)
+│       ├── healthier_substitutes.py        # Tiered healthier alternatives (reference catalog + KNPM)
+│       ├── recommendation_explainer.py     # Template or OpenAI narrative for substitutes
 │       └── db_service.py                # Persist scans / products / nutrition
 ├── alembic/                 # Migrations
 ├── octagon_images/          # SVG assets for demo (high sugar/salt/fat)

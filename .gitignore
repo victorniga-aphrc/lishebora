@@ -38,6 +38,7 @@ Thumbs.db
 *.pem
 start.sh
 stop.sh
+*.zip
 
 # AWS credentials and keys (never commit)
 aws/

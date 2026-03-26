@@ -1,12 +1,15 @@
-from fastapi import Depends, FastAPI, File, UploadFile, HTTPException
+from fastapi import Depends, FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
+from pydantic import BaseModel
+
 from app.db import get_db
-from app.models import OcrResult
+from app.models import HealthierSubstituteResult, OcrResult
 from app.services.db_service import save_ocr_result_to_db
 from app.services.ocr_client import OcrClientError, extract_ingredients_from_image
+from app.services.recommendation_explainer import attach_healthier_recommendations
 
 
 app = FastAPI(title="Lishebora VIC Backend")
@@ -87,6 +90,37 @@ async def index() -> str:
           .pos-meta dt { font-weight: 600; color: #111827; float: left; clear: left; width: 8.5rem; }
           .pos-meta dd { margin-left: 8.75rem; margin-bottom: 0.35rem; }
           .pos-none { font-size: 0.9rem; color: #6b7280; }
+          .subs-card { border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.25rem; background: #eff6ff; }
+          .subs-header { font-weight: 600; margin-bottom: 0.5rem; }
+          .subs-meta { font-size: 0.85rem; color: #4b5563; margin-bottom: 0.75rem; line-height: 1.45; }
+          .subs-warn-banner {
+            font-size: 0.8rem; color: #92400e; background: #fffbeb; border: 1px solid #fcd34d;
+            border-radius: 0.375rem; padding: 0.5rem 0.65rem; margin-bottom: 0.75rem;
+          }
+          .subs-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.65rem; }
+          .subs-tag {
+            font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em;
+            background: #e0e7ff; color: #3730a3; padding: 0.2rem 0.45rem; border-radius: 0.25rem;
+          }
+          .subs-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.65rem; }
+          .subs-item {
+            background: #fff; border: 1px solid #dbeafe; border-radius: 0.5rem; padding: 0.65rem 0.75rem;
+            font-size: 0.88rem; color: #1e293b;
+          }
+          .subs-item-title { font-weight: 600; color: #0f172a; margin-bottom: 0.35rem; line-height: 1.35; }
+          .subs-item-row { font-size: 0.8rem; color: #64748b; display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; align-items: center; }
+          .subs-pill {
+            display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.4rem; border-radius: 0.25rem;
+          }
+          .subs-pill-tier { background: #dbeafe; color: #1d4ed8; }
+          .subs-pill-ok { background: #dcfce7; color: #166534; }
+          .subs-pill-warn { background: #fee2e2; color: #991b1b; }
+          .subs-oct { font-size: 0.75rem; color: #64748b; }
+          .subs-explanation {
+            font-size: 0.88rem; color: #334155; line-height: 1.5; margin-top: 0.75rem; padding-top: 0.75rem;
+            border-top: 1px solid #bfdbfe;
+          }
+          .subs-footnote { font-size: 0.72rem; color: #64748b; margin-top: 0.65rem; line-height: 1.4; }
           .sidebar-col { display: flex; flex-direction: column; gap: 1rem; }
           @media (max-width: 900px) {
             .container { grid-template-columns: 1fr; }
@@ -129,6 +163,10 @@ async def index() -> str:
               <div class="pos-header">Supermarket taxonomy (POS)</div>
               <div id="pos-content" class="pos-none">No scan yet.</div>
             </div>
+            <div class="subs-card">
+              <div class="subs-header">Healthier substitutes</div>
+              <div id="subs-content" class="pos-none">No scan yet.</div>
+            </div>
           </div>
         </div>
         <script>
@@ -140,6 +178,7 @@ async def index() -> str:
           const knpmOctagonsEl = document.getElementById("knpm-octagons");
           const knpmReasonsEl = document.getElementById("knpm-reasons");
           const posContentEl = document.getElementById("pos-content");
+          const subsContentEl = document.getElementById("subs-content");
 
           function resetKnpmView() {
             knpmStatusEl.textContent = "No KNPM label yet.";
@@ -151,6 +190,177 @@ async def index() -> str:
           function resetPosView() {
             posContentEl.className = "pos-none";
             posContentEl.textContent = "No scan yet.";
+          }
+
+          function resetSubstitutesView() {
+            subsContentEl.className = "pos-none";
+            subsContentEl.textContent = "No scan yet.";
+          }
+
+          function renderHealthierSubstitutes(hs) {
+            subsContentEl.className = "";
+            subsContentEl.innerHTML = "";
+            if (!hs) {
+              subsContentEl.className = "pos-none";
+              subsContentEl.textContent = "No healthier_substitutes in response (disabled or not returned).";
+              return;
+            }
+            if (!hs.triggered) {
+              subsContentEl.className = "pos-meta";
+              const p = document.createElement("p");
+              p.className = "subs-meta";
+              p.style.margin = "0";
+              p.textContent = hs.skip_reason || "Substitutes not suggested for this product.";
+              subsContentEl.appendChild(p);
+              return;
+            }
+
+            const wrap = document.createElement("div");
+
+            if (Array.isArray(hs.exceeded_nutrient_summary) && hs.exceeded_nutrient_summary.length > 0) {
+              const tagLabel = document.createElement("div");
+              tagLabel.className = "subs-meta";
+              tagLabel.textContent = "Concern tags (for this scan):";
+              wrap.appendChild(tagLabel);
+              const tags = document.createElement("div");
+              tags.className = "subs-tags";
+              hs.exceeded_nutrient_summary.forEach((t) => {
+                const span = document.createElement("span");
+                span.className = "subs-tag";
+                span.textContent = String(t).replace(/_/g, " ");
+                tags.appendChild(span);
+              });
+              wrap.appendChild(tags);
+            }
+
+            const meta = document.createElement("div");
+            meta.className = "subs-meta";
+            meta.textContent =
+              "Tier used: " + (hs.tier_used != null ? String(hs.tier_used) : "—") +
+              " (1 = same subclass, 2 = same class, 3 = wider catalog).";
+            wrap.appendChild(meta);
+
+            if (hs.inferred_scan_form) {
+              const formRow = document.createElement("div");
+              formRow.className = "subs-meta";
+              formRow.textContent =
+                "Inferred pack form for this scan: " + hs.inferred_scan_form +
+                " — substitutes prefer the same form when the catalog lists it.";
+              wrap.appendChild(formRow);
+            }
+
+            if (hs.inferred_substitute_use_context === "beverage_drink") {
+              const ctx = document.createElement("div");
+              ctx.className = "subs-meta";
+              ctx.textContent =
+                "Use context: beverage / drink — oils and vinegars are ranked last (or omitted when enough drink options exist).";
+              wrap.appendChild(ctx);
+            }
+
+            if (hs.substitutes_include_pantry_liquids) {
+              const oilBanner = document.createElement("div");
+              oilBanner.className = "subs-warn-banner";
+              oilBanner.textContent =
+                "Some rows are pantry liquids (e.g. oil) — shown only because fewer drink-style products met the same KNPM limits.";
+              wrap.appendChild(oilBanner);
+            }
+
+            if (hs.substitutes_include_other_forms) {
+              const formBanner = document.createElement("div");
+              formBanner.className = "subs-warn-banner";
+              formBanner.textContent =
+                "Some suggestions are a different form (e.g. solid vs drink) because few same-form products met the criteria.";
+              wrap.appendChild(formBanner);
+            }
+
+            if (hs.no_close_substitutes) {
+              const banner = document.createElement("div");
+              banner.className = "subs-warn-banner";
+              banner.textContent =
+                "Search was widened and/or no fully below-threshold matches in the closest category — see tier note above.";
+              wrap.appendChild(banner);
+            }
+
+            const subs = hs.substitutes;
+            if (!Array.isArray(subs) || subs.length === 0) {
+              const empty = document.createElement("p");
+              empty.className = "subs-meta";
+              empty.style.margin = "0";
+              empty.textContent = hs.skip_reason || "No substitute rows returned from the reference catalog.";
+              wrap.appendChild(empty);
+            } else {
+              const list = document.createElement("ul");
+              list.className = "subs-list";
+              subs.forEach((s) => {
+                const li = document.createElement("li");
+                li.className = "subs-item";
+                const title = document.createElement("div");
+                title.className = "subs-item-title";
+                title.textContent = s.product_name || "—";
+                li.appendChild(title);
+                const row = document.createElement("div");
+                row.className = "subs-item-row";
+                const tier = document.createElement("span");
+                tier.className = "subs-pill subs-pill-tier";
+                tier.textContent = "Tier " + (s.tier != null ? s.tier : "?");
+                row.appendChild(tier);
+                const ok = document.createElement("span");
+                ok.className = "subs-pill " + (s.below_knpm_thresholds ? "subs-pill-ok" : "subs-pill-warn");
+                ok.textContent = s.below_knpm_thresholds ? "Below KNPM limits" : "Has warnings";
+                row.appendChild(ok);
+                if (s.form) {
+                  const fp = document.createElement("span");
+                  fp.className = "subs-pill subs-pill-tier";
+                  fp.style.background = "#e0e7ff";
+                  fp.textContent = "Form: " + s.form;
+                  row.appendChild(fp);
+                }
+                if (s.sub_type) {
+                  const st = document.createElement("span");
+                  st.className = "subs-oct";
+                  st.style.fontWeight = "600";
+                  st.textContent = "Type: " + s.sub_type;
+                  row.appendChild(st);
+                }
+                const oc = document.createElement("span");
+                oc.className = "subs-oct";
+                oc.textContent =
+                  "Black octagons: " + (s.octagon_count != null ? s.octagon_count : "—") +
+                  (Array.isArray(s.octagons) && s.octagons.length
+                    ? " (" + s.octagons.map((c) => c.replace(/_/g, " ").toLowerCase()).join(", ") + ")"
+                    : "");
+                row.appendChild(oc);
+                li.appendChild(row);
+                if (s.class_name || s.subclass_name) {
+                  const tax = document.createElement("div");
+                  tax.className = "subs-oct";
+                  tax.style.marginTop = "0.25rem";
+                  tax.textContent =
+                    [s.class_name && "Class: " + s.class_name, s.subclass_name && "Subclass: " + s.subclass_name]
+                      .filter(Boolean)
+                      .join(" · ");
+                  li.appendChild(tax);
+                }
+                list.appendChild(li);
+              });
+              wrap.appendChild(list);
+            }
+
+            if (hs.explanation && String(hs.explanation).trim()) {
+              const exp = document.createElement("div");
+              exp.className = "subs-explanation";
+              exp.textContent = hs.explanation;
+              wrap.appendChild(exp);
+            }
+
+            if (hs.approach_note) {
+              const foot = document.createElement("div");
+              foot.className = "subs-footnote";
+              foot.textContent = hs.approach_note;
+              wrap.appendChild(foot);
+            }
+
+            subsContentEl.appendChild(wrap);
           }
 
           function renderSupermarketClassification(sc) {
@@ -275,6 +485,7 @@ async def index() -> str:
             resultEl.textContent = "Processing...";
             resetKnpmView();
             resetPosView();
+            resetSubstitutesView();
             try {
               const response = await fetch("/extract", {
                 method: "POST",
@@ -286,6 +497,7 @@ async def index() -> str:
                 resultEl.textContent = "Server error " + response.status + ": " + text;
                 resetKnpmView();
                 resetPosView();
+                resetSubstitutesView();
                 return;
               }
 
@@ -293,10 +505,12 @@ async def index() -> str:
               resultEl.textContent = JSON.stringify(data, null, 2);
               renderKnpmLabel(data.knpm_label);
               renderSupermarketClassification(data.supermarket_classification);
+              renderHealthierSubstitutes(data.healthier_substitutes);
             } catch (err) {
               resultEl.textContent = "Error: " + err;
               resetKnpmView();
               resetPosView();
+              resetSubstitutesView();
             }
           });
         </script>
@@ -305,9 +519,17 @@ async def index() -> str:
     """
 
 
+class SubstituteRecommendRequest(BaseModel):
+    """Prior scan JSON plus optional shopper goal for the substitute explainer."""
+
+    ocr_result: OcrResult
+    user_goal: str | None = None
+
+
 @app.post("/extract", response_model=OcrResult)
 async def extract(
     image: UploadFile = File(...),
+    user_goal: str | None = Form(None),
     db: Session = Depends(get_db),
 ) -> OcrResult:
     """
@@ -323,7 +545,7 @@ async def extract(
 
     try:
         image_bytes = await image.read()
-        result = await extract_ingredients_from_image(image_bytes)
+        result = await extract_ingredients_from_image(image_bytes, user_goal=user_goal)
         
         # Save to database
         try:
@@ -347,6 +569,27 @@ async def extract(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail="Unexpected error during OCR.") from exc
+
+
+@app.post("/recommend/substitutes", response_model=HealthierSubstituteResult)
+async def recommend_substitutes(payload: SubstituteRecommendRequest) -> HealthierSubstituteResult:
+    """
+    Recompute healthier substitutes + explanation from a prior ``OcrResult`` JSON
+    (e.g. after editing ``user_goal`` without re-running vision OCR).
+    """
+    updated = await attach_healthier_recommendations(
+        payload.ocr_result,
+        has_trans_fats=False,
+        has_sweeteners=False,
+        user_goal=payload.user_goal,
+    )
+    hs = updated.healthier_substitutes
+    if hs is None:
+        return HealthierSubstituteResult(
+            triggered=False,
+            skip_reason="Substitute recommendations disabled.",
+        )
+    return hs
 
 
 @app.get("/health", response_class=JSONResponse)

@@ -120,6 +120,22 @@ def classify_with_knpm(
                 f"Saturated fat {nutrition.saturated_fat:.2f} g/100g exceeds KNPM limit for "
                 f"{cat_label}: {sat_fat_threshold} g/100g."
             )
+
+    # Numeric trans fat (label values): >2 g/100g, or >2% of total fat (common cut-off)
+    if nutrition.trans_fat is not None and nutrition.trans_fat > 0:
+        if nutrition.trans_fat > 2.0:
+            high_fat = True
+            reasons.append(
+                f"Trans fat {nutrition.trans_fat:.2f} g/100g exceeds 2 g/100g (regulatory-style cut-off)."
+            )
+        elif nutrition.total_fat is not None and nutrition.total_fat > 0:
+            ratio = nutrition.trans_fat / nutrition.total_fat
+            if ratio > 0.02:
+                high_fat = True
+                reasons.append(
+                    f"Trans fat is {ratio * 100:.2f}% of total fat (>2% of total fat)."
+                )
+
     if high_fat and "HIGH_IN_FAT" not in octagons:
         octagons.append("HIGH_IN_FAT")
 

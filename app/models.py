@@ -188,6 +188,87 @@ class SupermarketClassification(BaseModel):
     )
 
 
+class SubstituteProduct(BaseModel):
+    """One healthier alternative from the reference nutrition catalog."""
+
+    product_name: str = Field(..., description="Reference / POS-aligned product name")
+    tier: int = Field(..., ge=1, le=3, description="1 same subclass, 2 same class, 3 broader pool")
+    class_name: str | None = Field(default=None, description="POS class when known (exact SKU match)")
+    subclass_name: str | None = Field(default=None, description="POS subclass when known")
+    octagon_count: int = Field(..., ge=0, description="KNPM black-octagon count under scan category limits")
+    octagons: List[str] = Field(
+        default_factory=list,
+        description="HIGH_IN_SUGAR / HIGH_IN_SALT / HIGH_IN_FAT from numeric KNPM only",
+    )
+    below_knpm_thresholds: bool = Field(
+        ...,
+        description="True when no numeric octagons for this product under the scan's KNPM category limits",
+    )
+    sub_type: str | None = Field(default=None, description="From reference row when present")
+    form: str | None = Field(default=None, description="Solid/Liquid/Paste from reference when present")
+
+
+class HealthierSubstituteResult(BaseModel):
+    """
+    Tiered substitute list (content-based / catalog).
+
+    True collaborative filtering (co-purchase or matrix factorization) can be added later
+    using scan logs; this version ranks reference products by taxonomy proximity and KNPM health.
+    """
+
+    triggered: bool = Field(
+        default=False,
+        description="False when scan is not flagged as less healthy / no substitutes run",
+    )
+    skip_reason: str | None = Field(
+        default=None,
+        description="Why recommendations were skipped (e.g. fit for consumption, disabled)",
+    )
+    exceeded_nutrient_summary: List[str] = Field(
+        default_factory=list,
+        description="Short tags for nutrients / conditions that triggered concern (for UI + GenAI)",
+    )
+    tier_used: int = Field(
+        default=1,
+        ge=1,
+        le=3,
+        description="Widest tier used to fill the result list (1 narrowest)",
+    )
+    no_close_substitutes: bool = Field(
+        default=False,
+        description="True when Tier 1 had no below-threshold options and we expanded to wider tiers",
+    )
+    inferred_scan_form: str | None = Field(
+        default=None,
+        description="liquid | solid | paste inferred from label/POS/product text for substitute ranking",
+    )
+    inferred_substitute_use_context: str | None = Field(
+        default=None,
+        description="When set (e.g. beverage_drink), pantry oils/vinegars are deprioritised vs juices/soft drinks",
+    )
+    substitutes_include_other_forms: bool = Field(
+        default=False,
+        description="True when scan form was inferred and at least one substitute has a different known form",
+    )
+    substitutes_include_pantry_liquids: bool = Field(
+        default=False,
+        description="True when a drink-like scan still lists oil/vinegar-type liquids among substitutes",
+    )
+    substitutes: List[SubstituteProduct] = Field(default_factory=list)
+    explanation: str | None = Field(
+        default=None,
+        description="Short GenAI (or template) narrative comparing scan to alternatives",
+    )
+    approach_note: str = Field(
+        default=(
+            "Ranked from reference_nutrition_lookup using POS taxonomy (exact description match) "
+            "and the same KNPM category limits as this scan. Collaborative filtering from "
+            "user/scan co-occurrence can be layered on top later."
+        ),
+        description="How substitutes were chosen (content-based catalog)",
+    )
+
+
 class KnpmLabel(BaseModel):
     """
     KNPM-based classification for a product.
@@ -303,6 +384,10 @@ class OcrResult(BaseModel):
     foodclasses_bilstm_prediction: FoodclassesBiLstmPrediction | None = Field(
         default=None,
         description="Class/subclass/NOVA from multi-head BiLSTM on product name",
+    )
+    healthier_substitutes: HealthierSubstituteResult | None = Field(
+        default=None,
+        description="Tiered healthier alternatives when the product is less healthy (KNPM)",
     )
 
     @model_validator(mode="after")

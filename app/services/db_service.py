@@ -125,6 +125,10 @@ def save_ocr_result_to_db(
         merged_raw["foodclasses_bilstm_prediction"] = (
             ocr_result.foodclasses_bilstm_prediction.model_dump()
         )
+    if ocr_result.healthier_substitutes is not None:
+        merged_raw["healthier_substitutes"] = (
+            ocr_result.healthier_substitutes.model_dump()
+        )
 
     if merged_raw:
         merged_raw["class_name"] = ocr_result.class_name

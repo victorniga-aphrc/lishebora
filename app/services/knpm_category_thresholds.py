@@ -231,6 +231,41 @@ ThresholdSource = Literal[
 ]
 
 
+def _hints_blob_lower(variants: list[str]) -> str:
+    return " ".join(v.lower() for v in variants if v and str(v).strip())
+
+
+def _prefer_fruit_veg_drink_over_rtd_tea_coffee_mismatch(
+    chosen: KnpmThresholdRow,
+    variants: list[str],
+) -> KnpmThresholdRow:
+    """
+    Fuzzy KNPM match sometimes lands on **5.3** (coffee / tea / cocoa RTD) for retail
+    juice / fruit-drink lines (POS subclass often contains ``JUICE``).
+
+    When hints clearly describe juice / fruit drink and not coffee or cocoa, use **5.1**
+    (Fruit and vegetable drinks) if present in the CSV.
+    """
+    if chosen.category_number != "5.3":
+        return chosen
+    blob = _hints_blob_lower(variants)
+    juice_like = (
+        "juice" in blob
+        or "fruit drink" in blob
+        or "nectar" in blob
+        or "smoothie" in blob
+    )
+    if not juice_like:
+        return chosen
+    if "coffee" in blob or "cocoa" in blob:
+        return chosen
+    # Plain "tea" without juice can be RTD tea (5.3); keep 5.3 unless fruit/juice cues exist
+    if "tea" in blob and "juice" not in blob and "fruit drink" not in blob:
+        return chosen
+    alt = _row_by_category_number("5.1")
+    return alt if alt is not None else chosen
+
+
 def resolve_knpm_thresholds_for_extraction(
     product_info: Any | None,
     supermarket_classification: Any | None,
@@ -265,6 +300,9 @@ def resolve_knpm_thresholds_for_extraction(
                 best_row = _state.rows[idx]
 
     if best_row is not None:
+        best_row = _prefer_fruit_veg_drink_over_rtd_tea_coffee_mismatch(
+            best_row, variants
+        )
         return best_row, "csv_fuzzy", best_score
 
     bridged = _bridge_pos_class_to_knpm_row(supermarket_classification)

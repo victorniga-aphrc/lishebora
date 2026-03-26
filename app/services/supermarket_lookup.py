@@ -295,6 +295,27 @@ def _match_by_category_taxonomy(
     return best
 
 
+def pos_taxonomy_for_normalized_description(normalized_key: str) -> tuple[str | None, str | None]:
+    """
+    Exact lookup: normalized pack line → POS class_name, subclass_name.
+
+    Use the same ``normalize_pack_description`` as SKU rows so reference product names
+    that match a POS ``description`` line get instant taxonomy (no fuzzy).
+    """
+    _load_csv()
+    if not normalized_key:
+        return None, None
+    row = _data.norm_to_row.get(normalized_key.strip())
+    if not row:
+        return None, None
+    c = row.get("class_name")
+    s = row.get("subclass_name")
+    return (
+        str(c).strip() if c else None,
+        str(s).strip() if s else None,
+    )
+
+
 def lookup_supermarket_classification(
     product_info: Any | None,
 ) -> Any | None:
