@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build a slim lookup table from data/huge_data.csv for POS product → class/subclass.
+Build a slim lookup table from data/huge_data.csv for retailer product line → class/subclass.
 
 Output: data/product_class_subclass_lookup.csv
 Columns: description, class_name, subclass_name, nova
@@ -10,7 +10,7 @@ then rows are deduplicated on the **normalized** text (first row wins). That ali
 with nutrition being per 100g/100ml: the same product in different pack sizes maps
 to one lookup line.
 
-Use ``--no-strip-pack`` to keep raw POS descriptions and only dedupe exact strings.
+Use ``--no-strip-pack`` to keep raw export descriptions and only dedupe exact strings.
 
 Usage:
   python scripts/build_product_classification_lookup.py
@@ -29,7 +29,7 @@ _COL_ROOT = Path(__file__).resolve().parent.parent
 if str(_COL_ROOT) not in sys.path:
     sys.path.insert(0, str(_COL_ROOT))
 
-from app.utils.pos_description import normalize_pack_description
+from app.utils.pack_description import normalize_pack_description
 
 COLS = ["description", "class_name", "subclass_name", "nova"]
 

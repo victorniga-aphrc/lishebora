@@ -4,6 +4,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from app.database.identifiers import dotted_name, qualified_table
+
 
 load_dotenv()
 
@@ -22,85 +24,42 @@ class Settings:
     replicate_api_token: str | None = os.getenv("REPLICATE_API_TOKEN")
     replicate_model: str = os.getenv("REPLICATE_MODEL", "openai/gpt-4.1-mini")
     
-    # Database settings
+    # Database settings (database name is the path segment after the host, e.g. .../lishebora)
     database_url: str = os.getenv(
         "DATABASE_URL",
-        "postgresql://postgres@localhost:5432/lishebora"
+        "postgresql://postgres@localhost:5432/lishebora",
     )
 
-    # Supermarket POS taxonomy lookup (CSV: description, class_name, subclass_name, nova)
-    supermarket_lookup_csv: Path = Path(
-        os.getenv(
-            "SUPERMARKET_LOOKUP_CSV",
-            str(_REPO_ROOT / "data" / "product_class_subclass_lookup.csv"),
-        )
+    # Reference catalog (PostgreSQL schema + table; used by lookup_reference_nutrition_db, etc.)
+    reference_catalog_schema: str = (
+        os.getenv("REFERENCE_CATALOG_SCHEMA", "catalog").strip().lower()
     )
-    supermarket_fuzzy_min_score: float = float(
-        os.getenv("SUPERMARKET_FUZZY_MIN_SCORE", "72")
-    )
-    # When OCR category (e.g. "Fruit Drink") is matched to POS subclass/class labels
-    supermarket_taxonomy_fuzzy_min_score: float = float(
-        os.getenv("SUPERMARKET_TAXONOMY_FUZZY_MIN_SCORE", "52")
+    reference_catalog_products_table: str = (
+        os.getenv("REFERENCE_CATALOG_PRODUCTS_TABLE", "reference_products")
+        .strip()
+        .lower()
     )
 
-    # Reference nutrition (CSV built from all_categories_combined) — fills gaps when label has no table
-    reference_nutrition_lookup_csv: Path = Path(
-        os.getenv(
-            "REFERENCE_NUTRITION_LOOKUP_CSV",
-            str(_REPO_ROOT / "data" / "reference_nutrition_lookup.csv"),
+    @property
+    def reference_catalog_qualified_sql(self) -> str:
+        """Quoted schema.table for ``FROM`` / ``INTO`` in raw SQL."""
+        return qualified_table(
+            schema=self.reference_catalog_schema,
+            table=self.reference_catalog_products_table,
         )
-    )
-    reference_nutrition_fuzzy_min_score: float = float(
-        os.getenv("REFERENCE_NUTRITION_FUZZY_MIN_SCORE", "72")
-    )
-    reference_nutrition_lookup_enabled: bool = os.getenv(
-        "REFERENCE_NUTRITION_LOOKUP_ENABLED", "true"
-    ).lower() in ("1", "true", "yes", "on")
 
-    # KNPM official per-category nutrient limits (g per 100 g/ml) — not product nutrition values
-    knpm_category_threshold_csv: Path = Path(
-        os.getenv(
-            "KNPM_CATEGORY_THRESHOLD_CSV",
-            str(_REPO_ROOT / "data" / "knpm_category_threshold.csv"),
+    @property
+    def reference_catalog_source_label(self) -> str:
+        """Human/API label for nutrition_source (unquoted schema.table)."""
+        return dotted_name(
+            schema=self.reference_catalog_schema,
+            table=self.reference_catalog_products_table,
         )
-    )
-    knpm_category_fuzzy_min_score: float = float(
-        os.getenv("KNPM_CATEGORY_FUZZY_MIN_SCORE", "55")
-    )
 
-    # NOVA BiLSTM (product name → 4-class NOVA). Requires tokenizer pickle from training.
-    # Default off until tokenizer artifacts are confirmed.
-    nova_bilstm_enabled: bool = os.getenv(
-        "NOVA_BILSTM_ENABLED", "false"
-    ).lower() in ("1", "true", "yes", "on")
-    nova_bilstm_model_pkl: Path = Path(
-        os.getenv(
-            "NOVA_BILSTM_MODEL_PKL",
-            str(_REPO_ROOT / "models" / "novaclasses_model.pkl"),
-        )
-    )
-    nova_bilstm_tokenizer_pkl: Path = Path(
-        os.getenv(
-            "NOVA_BILSTM_TOKENIZER_PKL",
-            str(_REPO_ROOT / "models" / "tokenizer.pkl"),
-        )
-    )
-    nova_bilstm_labels_json: Path = Path(
-        os.getenv(
-            "NOVA_BILSTM_LABELS_JSON",
-            str(_REPO_ROOT / "models" / "nova_labels.json"),
-        )
-    )
-    nova_bilstm_label_encoders_pkl: Path = Path(
-        os.getenv(
-            "NOVA_BILSTM_LABEL_ENCODERS_PKL",
-            str(_REPO_ROOT / "models" / "label_encoders.pkl"),
-        )
-    )
-    # When POS match has no nova column, copy BiLSTM label onto supermarket_classification.nova
-    nova_bilstm_fill_pos_nova: bool = os.getenv(
-        "NOVA_BILSTM_FILL_POS_NOVA", "false"
-    ).lower() in ("1", "true", "yes", "on")
+    # Active KNPM thresholds used in runtime classification (g per 100g/ml)
+    knpm_fat_threshold: float = float(os.getenv("KNPM_FAT_THRESHOLD", "7.76"))
+    knpm_sugar_threshold: float = float(os.getenv("KNPM_SUGAR_THRESHOLD", "4.7"))
+    knpm_sodium_threshold: float = float(os.getenv("KNPM_SODIUM_THRESHOLD", "0.26"))
 
     # Multi-head foodclasses BiLSTM (product name -> class/subclass/nova)
     foodclasses_bilstm_enabled: bool = os.getenv(
@@ -124,34 +83,23 @@ class Settings:
             str(_REPO_ROOT / "models" / "label_encoders.pkl"),
         )
     )
-    # If true, class/subclass/nova from foodclasses model override POS lookup.
-    foodclasses_bilstm_prefer_over_pos: bool = os.getenv(
-        "FOODCLASSES_BILSTM_PREFER_OVER_POS", "true"
-    ).lower() in ("1", "true", "yes", "on")
-    # Recommended mode: keep POS when strong, use model only when POS is weak/missing.
-    foodclasses_bilstm_pos_first: bool = os.getenv(
-        "FOODCLASSES_BILSTM_POS_FIRST", "true"
-    ).lower() in ("1", "true", "yes", "on")
-    # POS fuzzy score below this is considered weak (exact matches are always strong).
-    foodclasses_bilstm_pos_weak_max_score: float = float(
-        os.getenv("FOODCLASSES_BILSTM_POS_WEAK_MAX_SCORE", "70")
+    # Fuzzy name score below this (vs reference_catalog row) is weak; exact name match is always strong.
+    foodclasses_bilstm_reference_weak_max_score: float = float(
+        os.getenv("FOODCLASSES_BILSTM_REFERENCE_WEAK_MAX_SCORE", "70")
     )
-    # Confidence guardrails for using foodclasses predictions.
-    foodclasses_bilstm_min_class_confidence: float = float(
-        os.getenv("FOODCLASSES_BILSTM_MIN_CLASS_CONFIDENCE", "0.60")
-    )
-    foodclasses_bilstm_min_subclass_confidence: float = float(
-        os.getenv("FOODCLASSES_BILSTM_MIN_SUBCLASS_CONFIDENCE", "0.55")
-    )
-    foodclasses_bilstm_min_nova_confidence: float = float(
-        os.getenv("FOODCLASSES_BILSTM_MIN_NOVA_CONFIDENCE", "0.40")
+    # Official NOVA display strings (index → line); used for API normalization.
+    nova_labels_json: Path = Path(
+        os.getenv(
+            "NOVA_LABELS_JSON",
+            str(_REPO_ROOT / "models" / "nova_labels.json"),
+        )
     )
 
     # Healthier substitutes (reference catalog + KNPM tiers; optional GenAI blurb)
     substitute_recommendations_enabled: bool = os.getenv(
         "SUBSTITUTE_RECOMMENDATIONS_ENABLED", "true"
     ).lower() in ("1", "true", "yes", "on")
-    substitute_max_results: int = int(os.getenv("SUBSTITUTE_MAX_RESULTS", "5"))
+    substitute_max_results: int = int(os.getenv("SUBSTITUTE_MAX_RESULTS", "3"))
     substitute_min_results: int = int(os.getenv("SUBSTITUTE_MIN_RESULTS", "3"))
     substitute_explanation_enabled: bool = os.getenv(
         "SUBSTITUTE_EXPLANATION_ENABLED", "true"

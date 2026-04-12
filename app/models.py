@@ -12,21 +12,10 @@ class Ingredient(BaseModel):
 class NutritionData(BaseModel):
     """
     Nutrition information per 100g or 100ml.
-    
-    Core KNPM nutrients are explicit fields for easy access.
-    Additional nutrients (potassium, calcium, iron, etc.) are stored in
-    additional_nutrients dict to capture everything visible on the label.
     """
 
-    # Core KNPM nutrients (explicit fields for easy access)
-    energy_kcal: float | None = Field(
-        default=None, description="Energy in kilocalories per 100g/100ml"
-    )
     total_fat: float | None = Field(
         default=None, description="Total fat in grams per 100g/100ml"
-    )
-    saturated_fat: float | None = Field(
-        default=None, description="Saturated fat in grams per 100g/100ml"
     )
     trans_fat: float | None = Field(
         default=None, description="Trans fat in grams per 100g/100ml"
@@ -36,22 +25,6 @@ class NutritionData(BaseModel):
     )
     sodium: float | None = Field(
         default=None, description="Sodium in grams per 100g/100ml"
-    )
-    protein: float | None = Field(
-        default=None, description="Protein in grams per 100g/100ml"
-    )
-    carbohydrates: float | None = Field(
-        default=None, description="Carbohydrates in grams per 100g/100ml"
-    )
-    fiber: float | None = Field(
-        default=None, description="Dietary fiber in grams per 100g/100ml"
-    )
-    
-    # Additional nutrients (potassium, calcium, iron, vitamins, etc.)
-    # Stored as dict to capture any nutrients present on the label
-    additional_nutrients: dict[str, float] = Field(
-        default_factory=dict,
-        description="Additional nutrients found on the label (e.g., potassium, calcium, iron, vitamins) with their values per 100g/100ml"
     )
 
 
@@ -68,11 +41,100 @@ class ProductInfo(BaseModel):
         default=None,
         description=(
             "Short plain-English product type inferred from the image (pack shape, logos, "
-            "photos, layout) when text is missing or unclear — not retailer POS codes. "
+            "photos, layout) when text is missing or unclear — not internal stock codes. "
             "Used as a hint for taxonomy matching."
         ),
     )
     barcode: str | None = Field(default=None, description="Product barcode (if visible)")
+
+
+class ExtractedData(BaseModel):
+    """Raw grouped extraction output from the image-processing step."""
+
+    raw_response_text: str | None = Field(
+        default=None,
+        description="Raw text returned by the vision model before parsing",
+    )
+    parsed_json: dict[str, Any] | None = Field(
+        default=None,
+        description="JSON-decoded model response when parsing succeeds",
+    )
+    raw_front_text: str | None = Field(
+        default=None,
+        description="Front-of-pack or main label text extracted from the image",
+    )
+    raw_ingredients_text: str | None = Field(
+        default=None,
+        description="Ingredients text extracted from the image",
+    )
+    raw_nutrition_table_text: str | None = Field(
+        default=None,
+        description="Nutrition table text extracted from the image",
+    )
+    detected_barcodes: List[str] = Field(
+        default_factory=list,
+        description="Barcodes detected from the image or model output",
+    )
+    detected_logos: List[str] = Field(
+        default_factory=list,
+        description="Brand or logo hints detected from the image",
+    )
+    visual_is_food: bool | None = Field(
+        default=None,
+        description="Whether the scene appears to contain a food product",
+    )
+    visual_is_packaged_retail_food: bool | None = Field(
+        default=None,
+        description=(
+            "Whether the image shows a retail packaged product with label/pack graphics "
+            "(false for loose produce, bulk unpackaged food, etc.)"
+        ),
+    )
+    visual_labels: List[str] = Field(
+        default_factory=list,
+        description="Coarse visual labels inferred from the image",
+    )
+    visual_confidence: dict[str, float] = Field(
+        default_factory=dict,
+        description="Optional confidence values for visual predictions",
+    )
+    visual_notes: str | None = Field(
+        default=None,
+        description="Short free-text note about the visual interpretation",
+    )
+    parse_error: str | None = Field(
+        default=None,
+        description="Set when the model response could not be parsed into JSON",
+    )
+
+
+class ParsedData(BaseModel):
+    """Structured output from the parsing step after raw extraction."""
+
+    ingredients: List[Ingredient] = Field(
+        default_factory=list,
+        description="Parsed ingredient objects",
+    )
+    nutrition: NutritionData | None = Field(
+        default=None,
+        description="Parsed nutrition object with pipeline-active nutrients",
+    )
+    product_info: ProductInfo | None = Field(
+        default=None,
+        description="Parsed product information",
+    )
+    visual_is_food: bool | None = Field(
+        default=None,
+        description="Boolean food/non-food signal carried from the extraction step",
+    )
+    visual_is_packaged_retail_food: bool | None = Field(
+        default=None,
+        description="Packaged retail label scan suitability; carried from extraction",
+    )
+    visual_labels: List[str] = Field(
+        default_factory=list,
+        description="Visual labels carried from the extraction step",
+    )
 
 
 class ExtractionMetadata(BaseModel):
@@ -84,10 +146,6 @@ class ExtractionMetadata(BaseModel):
     nutrition_facts_found: bool = Field(
         default=False, description="Whether nutrition facts table was found"
     )
-    nutrition_from_reference_lookup: bool = Field(
-        default=False,
-        description="True when numeric per-100g values came from reference CSV, not the label image",
-    )
     product_name_found: bool = Field(
         default=False, description="Whether product name was found"
     )
@@ -97,7 +155,7 @@ class ExtractionMetadata(BaseModel):
 
 
 class ReferenceNutritionMatch(BaseModel):
-    """When per-100g values are taken from ``reference_nutrition_lookup.csv``."""
+    """Metadata for per-100g values resolved from the reference nutrition table."""
 
     matched_product_name: str = Field(
         ...,
@@ -121,35 +179,77 @@ class ReferenceNutritionMatch(BaseModel):
     )
 
 
-class NovaBiLstmPrediction(BaseModel):
-    """NOVA class from the name-only BiLSTM (``novaclasses_model.pkl``)."""
+class ProductNutritionMatchMetadata(BaseModel):
+    """Metadata for per-100g values resolved from the reference nutrition lookup table."""
 
-    nova_label: str = Field(..., description="Human-readable NOVA category")
-    nova_index: int = Field(..., description="Argmax class index (0..3 for current checkpoint)")
-    probabilities: List[float] = Field(
-        default_factory=list,
-        description="Softmax probabilities aligned with label indices",
+    row_id: int | None = Field(
+        default=None,
+        description="Matched row ID when the source table exposes one",
     )
-    confidence: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Probability of the predicted class",
+    match_method: str | None = Field(
+        default=None,
+        description="How the lookup match was made, e.g. db_exact_name or db_fuzzy_name",
     )
-    input_text: str = Field(
-        ...,
-        description="Product string passed to the model (e.g. brand + name)",
+    matched_product_name: str | None = Field(
+        default=None,
+        description="Matched product name from the reference nutrition lookup table",
+    )
+    match_score: float | None = Field(
+        default=None,
+        description="Fuzzy score (0–100) when match_method is db_fuzzy_name",
+    )
+    sub_type: str | None = Field(
+        default=None,
+        description="From reference row when present",
+    )
+    form: str | None = Field(
+        default=None,
+        description="Solid/Liquid/Paste from reference row when present",
+    )
+
+
+class NutritionResolution(BaseModel):
+    """Resolved Step 3 nutrition output used by later pipeline steps."""
+
+    nutrition_data: NutritionData | None = Field(
+        default=None,
+        description="Resolved nutrition after label and product-db fallback",
+    )
+    nutrition_source: str = Field(
+        default="unavailable",
+        description=(
+            "Source of resolved nutrition: image, "
+            "catalog.reference_products, or unavailable"
+        ),
+    )
+    product_nutrition_match: ProductNutritionMatchMetadata | None = Field(
+        default=None,
+        description="Metadata for a successful reference nutrition lookup (same table as taxonomy)",
+    )
+    lookup_error: str | None = Field(
+        default=None,
+        description="Set when the database nutrition lookup could not be performed",
     )
 
 
 class FoodclassesBiLstmPrediction(BaseModel):
-    """Class/subclass/NOVA from multi-head BiLSTM (``foodclasses_model.pkl``)."""
+    """
+    Class/subclass/NOVA from multi-head BiLSTM (``foodclasses_model.pkl``).
+
+    Confidence fields are always returned when the model runs; they are not used to
+    decide whether to adopt the labels (that is DB strong-match vs model-only).
+
+    ``nova_label`` is the canonical line from ``models/nova_labels.json`` (see ``normalize_nova_for_api``).
+    """
 
     class_name: str | None = Field(default=None, description="Predicted class_name label")
     subclass_name: str | None = Field(
         default=None, description="Predicted subclass_name label"
     )
-    nova_label: str | None = Field(default=None, description="Predicted NOVA label")
+    nova_label: str | None = Field(
+        default=None,
+        description="Canonical NOVA display string from nova_labels.json",
+    )
     class_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     subclass_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     nova_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -158,21 +258,20 @@ class FoodclassesBiLstmPrediction(BaseModel):
     )
 
 
-class SupermarketClassification(BaseModel):
+class ProductClassification(BaseModel):
     """
-    Supermarket POS taxonomy for the scanned product.
+    Product taxonomy classification for the scanned product.
 
-    Resolution: (1) OCR name/brand vs POS SKU ``description``; (2) if needed, fuzzy map
-    label ``category`` and/or ``visual_product_type`` (vision hint) to distinct POS
-    ``subclass_name`` / ``class_name`` (for products not listed verbatim).
+    Resolution: match OCR product name (and brand) to the reference catalog row; class_name,
+    subclass_name, and NOVA come from that row when the name match is strong enough.
     """
 
-    class_name: str | None = Field(default=None, description="POS class name")
-    subclass_name: str | None = Field(default=None, description="POS subclass name")
-    nova: str | None = Field(default=None, description="NOVA processing category from POS")
+    class_name: str | None = Field(default=None, description="Taxonomy class name")
+    subclass_name: str | None = Field(default=None, description="Taxonomy subclass name")
+    nova: str | None = Field(default=None, description="NOVA processing category from reference catalog")
     matched_description: str | None = Field(
         default=None,
-        description="Matched POS SKU line, or representative SKU when matched via category→taxonomy",
+        description="Reference catalog product_name (or best fuzzy match) used for taxonomy",
     )
     match_method: str | None = Field(
         default=None,
@@ -184,21 +283,21 @@ class SupermarketClassification(BaseModel):
     )
     match_score: float | None = Field(
         default=None,
-        description="Fuzzy match score (0–100); null for exact SKU matches",
+        description="Fuzzy match score (0–100); null for exact name matches",
     )
 
 
 class SubstituteProduct(BaseModel):
     """One healthier alternative from the reference nutrition catalog."""
 
-    product_name: str = Field(..., description="Reference / POS-aligned product name")
+    product_name: str = Field(..., description="Reference catalog product name")
     tier: int = Field(..., ge=1, le=3, description="1 same subclass, 2 same class, 3 broader pool")
-    class_name: str | None = Field(default=None, description="POS class when known (exact SKU match)")
-    subclass_name: str | None = Field(default=None, description="POS subclass when known")
+    class_name: str | None = Field(default=None, description="Taxonomy class when known")
+    subclass_name: str | None = Field(default=None, description="Taxonomy subclass when known")
     octagon_count: int = Field(..., ge=0, description="KNPM black-octagon count under scan category limits")
     octagons: List[str] = Field(
         default_factory=list,
-        description="HIGH_IN_SUGAR / HIGH_IN_SALT / HIGH_IN_FAT from numeric KNPM only",
+        description="high_in_sugar / high_in_salt / high_in_fat from numeric KNPM only",
     )
     below_knpm_thresholds: bool = Field(
         ...,
@@ -240,7 +339,7 @@ class HealthierSubstituteResult(BaseModel):
     )
     inferred_scan_form: str | None = Field(
         default=None,
-        description="liquid | solid | paste inferred from label/POS/product text for substitute ranking",
+        description="liquid | solid | paste inferred from label and reference/product text for substitute ranking",
     )
     inferred_substitute_use_context: str | None = Field(
         default=None,
@@ -261,7 +360,7 @@ class HealthierSubstituteResult(BaseModel):
     )
     approach_note: str = Field(
         default=(
-            "Ranked from reference_nutrition_lookup using POS taxonomy (exact description match) "
+            "Ranked from PostgreSQL reference nutrition data using taxonomy matching "
             "and the same KNPM category limits as this scan. Collaborative filtering from "
             "user/scan co-occurrence can be layered on top later."
         ),
@@ -276,12 +375,12 @@ class KnpmLabel(BaseModel):
 
     classification: str | None = Field(
         default=None,
-        description="Overall classification: FIT_FOR_CONSUMPTION, LESS_HEALTHY, or UNKNOWN",
+        description="Overall classification: healthy, not healthy, or unknown",
     )
     octagons: List[str] = Field(
         default_factory=list,
         description=(
-            "Specific black-octagon warnings, e.g. HIGH_IN_SUGAR, HIGH_IN_SALT, HIGH_IN_FAT. "
+            "Specific black-octagon warnings, e.g. high_in_sugar, high_in_salt, high_in_fat. "
             "Empty if product is fit for consumption or cannot be evaluated."
         ),
     )
@@ -293,27 +392,6 @@ class KnpmLabel(BaseModel):
         default=None,
         description=(
             "Optional message when classification cannot be applied (e.g. missing nutrition facts)."
-        ),
-    )
-    knpm_category_number: str | None = Field(
-        default=None,
-        description="Official KNPM food category code when limits come from knpm_category_threshold.csv",
-    )
-    knpm_category_name: str | None = Field(
-        default=None,
-        description="KNPM category label used to select per-nutrient limits",
-    )
-    knpm_category_match_score: float | None = Field(
-        default=None,
-        description="Fuzzy match score (0–100) when category was inferred from OCR/POS hints",
-    )
-    knpm_thresholds_source: str | None = Field(
-        default=None,
-        description=(
-            "csv_fuzzy: matched category_name from hints; "
-            "csv_pos_class_bridge: POS class_name mapped to KNPM category (e.g. BREADS→2.2); "
-            "csv_default_composite: no match, used category 6.0 Composite foods; "
-            "hardcoded_fallback: CSV missing, legacy fixed limits"
         ),
     )
 
@@ -332,13 +410,36 @@ class OcrResult(BaseModel):
     product_info: ProductInfo | None = Field(
         default=None, description="Product identification information (if available)"
     )
+    visual_is_food: bool | None = Field(
+        default=None,
+        description=(
+            "Boolean visual assessment of whether the image shows an edible item. "
+            "True includes foods, drinks, spices, condiments, and cooking ingredients; "
+            "false means non-food; null means uncertain."
+        ),
+    )
+    visual_labels: List[str] = Field(
+        default_factory=list,
+        description="Plain-English visual labels inferred from the image",
+    )
+    visual_is_packaged_retail_food: bool | None = Field(
+        default=None,
+        description=(
+            "True if vision assessed a retail packaged product with a label; false if unpackaged "
+            "(e.g. loose produce) or not a consumer pack scan"
+        ),
+    )
+    parse_error: str | None = Field(
+        default=None,
+        description="Set when the raw extraction response could not be parsed into JSON",
+    )
     class_name: str | None = Field(
         default=None,
-        description="Supermarket POS class for this scan (mirrors lookup; null if unresolved)",
+        description="Resolved taxonomy class for this scan (mirrors product_classification; null if unresolved)",
     )
     subclass_name: str | None = Field(
         default=None,
-        description="Supermarket POS subclass for this scan (mirrors lookup; null if unresolved)",
+        description="Resolved taxonomy subclass for this scan (mirrors product_classification; null if unresolved)",
     )
     raw_text: str | None = Field(
         default=None,
@@ -363,23 +464,26 @@ class OcrResult(BaseModel):
     )
     model_raw_output: Any | None = Field(
         default=None,
-        description="Raw output returned by the Replicate model (for debugging)",
+        description="Raw output returned by the vision model call (for debugging)",
     )
     knpm_label: KnpmLabel | None = Field(
         default=None,
         description="KNPM-based label and black octagon warnings (if nutrition data is available)",
     )
-    supermarket_classification: SupermarketClassification | None = Field(
+    product_classification: ProductClassification | None = Field(
         default=None,
-        description="Full POS lookup result (NOVA, match method, scores). class_name/subclass_name above are copied from here.",
+        description="Full taxonomy lookup result (NOVA, match method, scores). class_name/subclass_name above are copied from here.",
     )
-    reference_nutrition_match: ReferenceNutritionMatch | None = Field(
-        default=None,
-        description="Set when nutrition_per_100g was filled from reference_nutrition_lookup.csv",
+    nutrition_source: str = Field(
+        default="unavailable",
+        description=(
+            "Where nutrition_per_100g came from: image, "
+            "catalog.reference_products, or unavailable"
+        ),
     )
-    nova_bilstm_prediction: NovaBiLstmPrediction | None = Field(
+    product_nutrition_match: ProductNutritionMatchMetadata | None = Field(
         default=None,
-        description="NOVA from BiLSTM on product name when model + tokenizer + labels are available",
+        description="Set when nutrition_per_100g was filled from catalog.reference_products",
     )
     foodclasses_bilstm_prediction: FoodclassesBiLstmPrediction | None = Field(
         default=None,
@@ -391,15 +495,14 @@ class OcrResult(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _sync_pos_class_subclass_from_lookup(self) -> Self:
-        """Expose POS class/subclass at top level for API JSON (same as supermarket_classification)."""
-        sc = self.supermarket_classification
+    def _sync_taxonomy_class_subclass_from_lookup(self) -> Self:
+        """Expose class/subclass at top level for API JSON (same as product_classification)."""
+        sc = self.product_classification
         if sc is not None:
-            return self.model_copy(
-                update={
-                    "class_name": sc.class_name,
-                    "subclass_name": sc.subclass_name,
-                }
-            )
-        return self.model_copy(update={"class_name": None, "subclass_name": None})
+            self.class_name = sc.class_name
+            self.subclass_name = sc.subclass_name
+        else:
+            self.class_name = None
+            self.subclass_name = None
+        return self
 

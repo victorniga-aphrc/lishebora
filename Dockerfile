@@ -10,10 +10,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# System deps: build tools for psycopg2/scikit-learn wheels, client for optional DB checks,
+# libgomp1 often needed for TensorFlow CPU wheels on slim images.
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    g++ \
     postgresql-client \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -32,7 +35,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-# Run the application
-# Use --reload for development (when volumes are mounted)
-# For production, remove --reload flag
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Default: production-style (no --reload). Override in docker-compose for local dev if needed.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

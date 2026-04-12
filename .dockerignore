@@ -54,6 +54,8 @@ notebooks/
 
 # Data
 ingredient_image_data/
+data/huge_data.csv
+data/all_categories_combined.csv
 *.jpg
 *.jpeg
 *.png

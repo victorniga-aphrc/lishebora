@@ -34,6 +34,7 @@ Thumbs.db
 # Environment / secrets
 .env
 .env.*
+!.env.example
 *.key
 *.pem
 start.sh
@@ -49,10 +50,25 @@ supermarket_a.backup
 # Notebooks (optional – remove if you want them in git)
 *.ipynb_checkpoints/
 
-# Markdown project docs – keep only key docs in git
-*.md
-!README.md
-!DOCKER_SETUP.md
-!DATABASE_SETUP.md
-!CHANGELOG.md
+# Machine-local / scratch (shell helpers, notes, optional tests, archived markdown — not versioned)
+local/
+
+# Optional project documentation at repo root (keep under local/ if you want it on disk)
+docs/
+
+# Root-level tests (optional automation lives under local/tests/)
+tests/
+
+# Research / bulky assets (keep locally; not part of the runtime API tree)
+concept/
+ingredient_image_data/
+notebooks/
+
+# Runtime / editor noise
+logs/
+.run/
+
+# Large raw ETL inputs (obtain separately; see data/README.md)
+data/huge_data.csv
+data/all_categories_combined.csv
 

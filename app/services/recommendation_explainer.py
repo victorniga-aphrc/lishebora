@@ -23,46 +23,24 @@ def _build_prompt(ocr: OcrResult, result: HealthierSubstituteResult, user_goal: 
     reasons = list(knpm.reasons) if knpm else []
     subs_lines: list[str] = []
     for s in result.substitutes:
-        fm = f", form={s.form}" if s.form else ""
         subs_lines.append(
             f"- {s.product_name} (tier {s.tier}, octagons={s.octagon_count}, "
-            f"below_threshold={s.below_knpm_thresholds}{fm})"
+            f"below_threshold={s.below_knpm_thresholds})"
         )
     goal_line = (
-        f"User goal (optional): {user_goal.strip()}\n"
+        f"Optional shopper goal (often unused): {user_goal.strip()}\n"
         if user_goal and user_goal.strip()
         else ""
     )
     exceeded = ", ".join(result.exceeded_nutrient_summary) or "see KNPM reasons"
     widen = (
-        "Note: search was widened beyond the closest retail sub-category."
+        "Note: search was widened beyond the closest subclass."
         if result.no_close_substitutes
         else ""
     )
-    form_line = ""
-    if result.inferred_scan_form:
-        form_line = (
-            f"Inferred pack form for the scanned product: {result.inferred_scan_form}. "
-            "Prefer discussing substitutes that are the same form (e.g. drinks vs dry foods).\n"
-        )
-        if result.inferred_substitute_use_context == "beverage_drink":
-            form_line += (
-                "Context: **beverage / drink** — do not praise cooking oils or vinegar as "
-                "replacements for juice or soft drinks unless no drink alternatives were listed.\n"
-            )
-        if result.substitutes_include_other_forms:
-            form_line += (
-                "Some listed substitutes may be a different form because the database had "
-                "few same-form options.\n"
-            )
-        if result.substitutes_include_pantry_liquids:
-            form_line += (
-                "Note: the list may include pantry oils/condiments only to reach the requested "
-                "count when few beverages met the nutrition rules — mention this if relevant.\n"
-            )
     return f"""You are a concise nutrition assistant for a Kenyan retail / KNPM context.
 
-{goal_line}{form_line}The scanned product triggered concerns. KNPM-style warnings (octagons): {octs}.
+{goal_line}The scanned product triggered concerns. KNPM-style warnings (octagons): {octs}.
 Regulatory-style reasons (short): {reasons[:6]}
 Exceeded nutrient tags: {exceeded}.
 {widen}
@@ -73,7 +51,7 @@ Suggested substitutes from our reference database:
 Write 2–4 short sentences for the shopper:
 1) Which nutrients or conditions were problematic (plain language).
 2) Why the listed alternatives are better (fewer or no black octagons under the same category limits).
-3) If a user goal was given, tie one sentence to that goal; otherwise skip.
+3) If an optional shopper goal was given above, tie one sentence to it; otherwise omit.
 Do not claim medical cures. Do not invent products not listed."""
 
 

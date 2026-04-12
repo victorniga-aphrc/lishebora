@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lishebora — pipeline test console</title>
+  <style>
+    /* Light theme, WCAG 2.1 AA-oriented contrast (body text ≥4.5:1, UI borders ≥3:1 on #fff) */
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface-muted: #f8fafc;
+      --border: #64748b;
+      --border-subtle: #cbd5e1;
+      --text: #0f172a;
+      --text-secondary: #334155;
+      --accent: #1d4ed8;
+      --accent-hover: #1e40af;
+      --accent-on: #ffffff;
+      --ok: #166534;
+      --ok-bg: #f0fdf4;
+      --warn-text: #78350f;
+      --warn-bg: #fffbeb;
+      --warn-border: #b45309;
+      --bad: #991b1b;
+      --bad-bg: #fef2f2;
+      --radius: 10px;
+      --font: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --focus-ring: 0 0 0 3px #ffffff, 0 0 0 5px #1d4ed8;
+    }
+
+    html {
+      color-scheme: light;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      font-size: 1rem;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* Skip link: keyboard / SR first stop */
+    .skip-link {
+      position: absolute;
+      left: 1rem;
+      top: -120px;
+      z-index: 200;
+      padding: 0.75rem 1.25rem;
+      background: var(--accent);
+      color: var(--accent-on);
+      font-weight: 600;
+      font-size: 1rem;
+      border-radius: 8px;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .skip-link:focus {
+      top: 1rem;
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+
+    a:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    button:focus-visible,
+    input[type="file"]:focus-visible,
+    summary:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+
+    header {
+      padding: 1rem 1.5rem;
+      border-bottom: 2px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      justify-content: space-between;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    header p {
+      margin: 0.35rem 0 0;
+      font-size: 0.9375rem;
+      color: var(--text-secondary);
+      max-width: 40rem;
+      line-height: 1.55;
+    }
+
+    .status-pill {
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 0.5rem 0.85rem;
+      min-height: 2.75rem;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      background: var(--surface-muted);
+      color: var(--text-secondary);
+      border: 2px solid var(--border);
+    }
+    .status-pill.loading {
+      color: var(--warn-text);
+      background: var(--warn-bg);
+      border-color: var(--warn-border);
+    }
+    .status-pill.ok {
+      color: var(--ok);
+      background: var(--ok-bg);
+      border-color: #15803d;
+    }
+    .status-pill.err {
+      color: var(--bad);
+      background: var(--bad-bg);
+      border-color: #b91c1c;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 320px) 1fr;
+      gap: 0;
+      min-height: calc(100vh - 72px);
+    }
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    aside {
+      padding: 1.25rem;
+      border-right: 2px solid var(--border-subtle);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    @media (max-width: 960px) {
+      aside { border-right: none; border-bottom: 2px solid var(--border-subtle); }
+    }
+
+    .panel {
+      background: var(--surface-muted);
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    input[type="file"] {
+      width: 100%;
+      min-height: 2.75rem;
+      font-size: 0.9375rem;
+      color: var(--text);
+      padding: 0.35rem 0;
+    }
+
+    .btn-row { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+    button {
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      min-height: 2.75rem;
+      padding: 0.625rem 1.15rem;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      background: var(--accent);
+      color: var(--accent-on);
+    }
+    button:hover { background: var(--accent-hover); }
+    button.secondary {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    button.secondary:hover {
+      background: var(--surface-muted);
+      border-color: var(--text-secondary);
+    }
+    button:disabled {
+      background: #94a3b8;
+      color: #f1f5f9;
+      border-color: #64748b;
+      cursor: not-allowed;
+      opacity: 1;
+    }
+
+    #preview-wrap {
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 2px solid var(--border-subtle);
+      background: #e2e8f0;
+      aspect-ratio: 4/3;
+      display: grid;
+      place-items: center;
+    }
+    #preview-wrap img { max-width: 100%; max-height: 220px; object-fit: contain; }
+    #preview-wrap .ph {
+      color: var(--text-secondary);
+      font-size: 0.9375rem;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .hint {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+    .hint code {
+      background: #e2e8f0;
+      color: var(--text);
+      padding: 0.15rem 0.35rem;
+      border-radius: 4px;
+      font-size: 0.8125rem;
+      border: 1px solid var(--border-subtle);
+    }
+
+    main {
+      padding: 1.25rem;
+      overflow-y: auto;
+      max-height: calc(100vh - 72px);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+    .card h2 {
+      margin: 0 0 0.65rem;
+      font-size: 0.8125rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text);
+    }
+    .card {
+      background: var(--surface);
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--radius);
+      padding: 1rem 1.15rem;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+    .card.wide { grid-column: 1 / -1; }
+    dl.meta {
+      margin: 0;
+      font-size: 0.9375rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: 1.25rem;
+      row-gap: 0.5rem;
+      align-items: start;
+    }
+    dl.meta dt {
+      color: var(--text-secondary);
+      font-weight: 700;
+      margin: 0;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      min-width: 0;
+    }
+    dl.meta dd {
+      margin: 0;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      color: var(--text);
+      min-width: 0;
+    }
+    .empty { color: var(--text-secondary); font-size: 0.9375rem; margin: 0; }
+    ul.compact {
+      margin: 0;
+      padding-left: 1.25rem;
+      font-size: 0.9375rem;
+      color: var(--text);
+    }
+    ul.compact li { margin-bottom: 0.35rem; }
+
+    .knpm-status { font-weight: 700; margin-bottom: 0.5rem; font-size: 1.0625rem; color: var(--text); }
+    .knpm-status.fit { color: var(--ok); }
+    .knpm-status.less { color: var(--bad); }
+    .knpm-status.unknown { color: var(--text-secondary); }
+    .octagon-list { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0.5rem 0; }
+    .octagon-wrapper { display: inline-flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+    .octagon-frame { width: 80px; height: 80px; display: grid; place-items: center; }
+    .octagon-img { width: 72px; height: 72px; object-fit: contain; }
+    .octagon-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-align: center;
+      color: var(--text-secondary);
+    }
+
+    .subs-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+    .subs-item {
+      background: var(--surface-muted);
+      border: 2px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 0.65rem 0.85rem;
+      font-size: 0.9375rem;
+      color: var(--text);
+    }
+    .subs-item-title { font-weight: 700; margin-bottom: 0.3rem; color: var(--text); }
+    .pill {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.45rem;
+      border-radius: 4px;
+      margin-right: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border: 1px solid transparent;
+    }
+    .pill-tier { background: #dbeafe; color: #1e3a8a; border-color: #3b82f6; }
+    .pill-ok { background: #dcfce7; color: #14532d; border-color: #22c55e; }
+    .pill-warn { background: #fee2e2; color: #7f1d1d; border-color: #ef4444; }
+    .banner-warn {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--warn-text);
+      background: var(--warn-bg);
+      border: 2px solid var(--warn-border);
+      border-radius: 8px;
+      padding: 0.55rem 0.75rem;
+      margin-bottom: 0.5rem;
+      line-height: 1.45;
+    }
+
+    details.raw {
+      margin-top: 1rem;
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+    details.raw summary {
+      cursor: pointer;
+      padding: 0.85rem 1rem;
+      font-weight: 700;
+      font-size: 0.9375rem;
+      color: var(--text);
+      list-style-position: outside;
+    }
+    details.raw summary:hover { background: var(--surface-muted); }
+    pre.json {
+      margin: 0;
+      padding: 1rem;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      overflow: auto;
+      max-height: 420px;
+      background: #f8fafc;
+      color: var(--text);
+      border-top: 2px solid var(--border-subtle);
+    }
+
+    .err-list { color: var(--bad); font-weight: 500; }
+    .err-list li::marker { color: var(--bad); }
+    .warn-list { color: var(--warn-text); font-weight: 500; }
+    .warn-list li::marker { color: var(--warn-border); }
+
+    .stack-gap-sm { margin-top: 0.75rem; }
+    .stack-gap-md { margin-top: 1rem; }
+    .stack-gap-xs { margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <header>
+    <div>
+      <h1>Lishebora — pipeline test console</h1>
+    </div>
+    <span id="status-pill" class="status-pill" role="status" aria-live="polite" aria-atomic="true">Idle</span>
+  </header>
+
+  <div class="layout">
+    <aside aria-label="Upload image and run extraction">
+      <div class="panel">
+        <label for="file-input">Image file</label>
+        <input id="file-input" type="file" accept="image/*" />
+        <div class="btn-row stack-gap-md">
+          <button type="button" id="btn-extract" aria-label="Run extraction pipeline on selected image">Run /extract</button>
+        </div>
+      </div>
+      <div id="preview-wrap" role="region" aria-label="Selected image preview">
+        <span class="ph" id="preview-ph">No image selected</span>
+        <img id="preview-img" alt="" hidden />
+      </div>
+    </aside>
+
+    <main id="main-content" tabindex="-1">
+      <div class="grid" id="results-grid">
+        <div class="card wide" id="card-extraction">
+          <h2>Extraction summary</h2>
+          <p class="empty" id="extraction-empty">Run a scan to see flags and nutrition source.</p>
+          <dl class="meta" id="extraction-dl" hidden></dl>
+        </div>
+
+        <div class="card" id="card-product">
+          <h2>Product</h2>
+          <p class="empty" id="product-empty">—</p>
+          <dl class="meta" id="product-dl" hidden></dl>
+        </div>
+
+        <div class="card" id="card-nutrition">
+          <h2>Nutrition (per 100g/ml)</h2>
+          <p class="empty" id="nutrition-empty">—</p>
+          <dl class="meta" id="nutrition-dl" hidden></dl>
+        </div>
+
+        <div class="card wide" id="card-ingredients">
+          <h2>Ingredients</h2>
+          <p class="empty" id="ingredients-empty">None parsed</p>
+          <ul class="compact" id="ingredients-ul" hidden></ul>
+        </div>
+
+        <div class="card" id="card-knpm">
+          <h2>KNPM</h2>
+          <div id="knpm-status" class="knpm-status unknown">No scan yet.</div>
+          <div id="knpm-octagons" class="octagon-list"></div>
+          <ul class="compact" id="knpm-reasons"></ul>
+        </div>
+
+        <div class="card" id="card-taxonomy">
+          <h2>CLASSIFICATION</h2>
+          <p class="empty" id="taxonomy-empty">No product_classification</p>
+          <dl class="meta" id="taxonomy-dl" hidden></dl>
+        </div>
+
+        <div class="card" id="card-bilstm">
+          <h2>Foodclasses BiLSTM</h2>
+          <p class="empty" id="bilstm-empty">No prediction (disabled, strong DB match, or missing model)</p>
+          <dl class="meta" id="bilstm-dl" hidden></dl>
+        </div>
+
+        <div class="card wide" id="card-subs">
+          <h2>Healthier substitutes</h2>
+          <div id="subs-content"><p class="empty">No scan yet.</p></div>
+        </div>
+
+        <div class="card" id="card-refmatch">
+          <h2>Reference nutrition match</h2>
+          <p class="empty" id="refmatch-empty">No DB fill for nutrition</p>
+          <dl class="meta" id="refmatch-dl" hidden></dl>
+        </div>
+
+        <div class="card wide" id="card-warnerr">
+          <h2>Warnings &amp; errors</h2>
+          <p class="empty" id="warn-empty">No warnings</p>
+          <ul class="compact warn-list" id="warnings-ul" hidden></ul>
+          <p class="empty stack-gap-xs" id="err-empty">No errors</p>
+          <ul class="compact err-list" id="errors-ul" hidden></ul>
+        </div>
+      </div>
+
+      <details class="raw">
+        <summary>Raw API JSON (OcrResult)</summary>
+        <pre class="json" id="raw-json">{}</pre>
+      </details>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const $ = (id) => document.getElementById(id);
+      const fileInput = $("file-input");
+      const previewImg = $("preview-img");
+      const previewPh = $("preview-ph");
+      const statusPill = $("status-pill");
+      const rawJson = $("raw-json");
+
+      let lastData = null;
+
+      function setStatus(text, cls) {
+        statusPill.textContent = text;
+        statusPill.className = "status-pill" + (cls ? " " + cls : "");
+      }
+
+      function formatMatchScore1dp(v) {
+        if (v === undefined || v === null) return null;
+        const n = typeof v === "number" ? v : Number(v);
+        return Number.isFinite(n) ? n.toFixed(1) : String(v);
+      }
+
+      function showDl(dl, pairs, emptyEl) {
+        dl.innerHTML = "";
+        let any = false;
+        pairs.forEach(([k, v]) => {
+          if (v === undefined || v === null || v === "") v = "—";
+          if (typeof v === "object") v = JSON.stringify(v);
+          const dt = document.createElement("dt");
+          dt.textContent = k;
+          const dd = document.createElement("dd");
+          dd.textContent = String(v);
+          dl.appendChild(dt);
+          dl.appendChild(dd);
+          any = true;
+        });
+        dl.hidden = !any;
+        if (emptyEl) emptyEl.hidden = any;
+      }
+
+      function renderExtraction(data) {
+        const em = data.extraction_metadata || {};
+        const dl = $("extraction-dl");
+        const empty = $("extraction-empty");
+        const vl = data.visual_labels;
+        const vlStr = Array.isArray(vl) && vl.length ? vl.join("; ") : null;
+        showDl(dl, [
+          ["ingredients_found", em.ingredients_found],
+          ["nutrition_facts_found", em.nutrition_facts_found],
+          ["product_name_found", em.product_name_found],
+          ["barcode_found", em.barcode_found],
+          ["nutrition_source", data.nutrition_source],
+          ["visual_is_food", data.visual_is_food],
+          ["visual_is_packaged_retail_food", data.visual_is_packaged_retail_food],
+          ["visual_labels", vlStr],
+          ["parse_error", data.parse_error],
+        ], empty);
+      }
+
+      function renderProduct(data) {
+        const pi = data.product_info;
+        const empty = $("product-empty");
+        const dl = $("product-dl");
+        if (!pi) {
+          empty.textContent = "No product_info";
+          empty.hidden = false;
+          dl.hidden = true;
+          return;
+        }
+        showDl(dl, [
+          ["name", pi.name],
+          ["brand", pi.brand],
+          ["barcode", pi.barcode],
+          ["category", pi.category],
+          ["visual_product_type", pi.visual_product_type],
+        ], empty);
+      }
+
+      function renderNutrition(data) {
+        const n = data.nutrition_per_100g;
+        const empty = $("nutrition-empty");
+        const dl = $("nutrition-dl");
+        if (!n) {
+          empty.textContent = "No nutrition_per_100g";
+          empty.hidden = false;
+          dl.hidden = true;
+          return;
+        }
+        showDl(dl, [
+          ["total_fat", n.total_fat],
+          ["trans_fat", n.trans_fat],
+          ["total_sugar", n.total_sugar],
+          ["sodium", n.sodium],
+        ], empty);
+      }
+
+      function renderIngredients(data) {
+        const ul = $("ingredients-ul");
+        const empty = $("ingredients-empty");
+        ul.innerHTML = "";
+        const list = data.ingredients || [];
+        if (!list.length) {
+          empty.hidden = false;
+          ul.hidden = true;
+          return;
+        }
+        empty.hidden = true;
+        ul.hidden = false;
+        list.forEach((ing) => {
+          const li = document.createElement("li");
+          li.textContent = ing.name || JSON.stringify(ing);
+          ul.appendChild(li);
+        });
+      }
+
+      function renderKnpm(knpm) {
+        const knpmStatusEl = $("knpm-status");
+        const knpmOctagonsEl = $("knpm-octagons");
+        const knpmReasonsEl = $("knpm-reasons");
+        knpmReasonsEl.innerHTML = "";
+        if (!knpm) {
+          knpmStatusEl.textContent = "No knpm_label";
+          knpmStatusEl.className = "knpm-status unknown";
+          knpmOctagonsEl.innerHTML = "";
+          return;
+        }
+        knpmStatusEl.className = "knpm-status";
+        if (knpm.classification === "healthy") {
+          knpmStatusEl.textContent = "Healthy (within assessed limits)";
+          knpmStatusEl.classList.add("fit");
+          knpmOctagonsEl.innerHTML = "";
+        } else if (knpm.classification === "not healthy") {
+          knpmStatusEl.textContent = "Not healthy (KNPM)";
+          knpmStatusEl.classList.add("less");
+        } else {
+          knpmStatusEl.textContent = knpm.message || "Unknown / unavailable";
+          knpmStatusEl.classList.add("unknown");
+        }
+
+        knpmOctagonsEl.innerHTML = "";
+        if (knpm.classification !== "healthy" && Array.isArray(knpm.octagons)) {
+          const srcMap = {
+            high_in_sugar: "/octagon_images/high_in_sugar.svg",
+            high_in_salt: "/octagon_images/high_in_salt.svg",
+            high_in_fat: "/octagon_images/high_in_fat.svg",
+          };
+          const labelMap = {
+            high_in_sugar: "High in sugar",
+            high_in_salt: "High in salt",
+            high_in_fat: "High in fat",
+          };
+          knpm.octagons.forEach((code) => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "octagon-wrapper";
+            const frame = document.createElement("div");
+            frame.className = "octagon-frame";
+            const img = document.createElement("img");
+            img.className = "octagon-img";
+            img.alt = labelMap[code] || code;
+            img.src = srcMap[code] || srcMap.high_in_fat;
+            frame.appendChild(img);
+            wrapper.appendChild(frame);
+            const cap = document.createElement("div");
+            cap.className = "octagon-label";
+            cap.textContent = labelMap[code] || code.replace(/_/g, " ");
+            wrapper.appendChild(cap);
+            knpmOctagonsEl.appendChild(wrapper);
+          });
+        }
+        (knpm.reasons || []).forEach((r) => {
+          const li = document.createElement("li");
+          li.textContent = r;
+          knpmReasonsEl.appendChild(li);
+        });
+        if (knpm.message) {
+          const li = document.createElement("li");
+          li.textContent = knpm.message;
+          knpmReasonsEl.appendChild(li);
+        }
+      }
+
+      function renderTaxonomy(sc) {
+        const empty = $("taxonomy-empty");
+        const dl = $("taxonomy-dl");
+        if (!sc) {
+          empty.textContent = "No product_classification";
+          empty.hidden = false;
+          dl.hidden = true;
+          return;
+        }
+        showDl(dl, [
+          ["class_name", sc.class_name],
+          ["subclass_name", sc.subclass_name],
+          ["nova", sc.nova],
+          ["matched_description", sc.matched_description],
+          ["match_method", sc.match_method],
+          ["match_score", formatMatchScore1dp(sc.match_score) ?? "— (exact)"],
+        ], empty);
+      }
+
+      function renderBilstm(fc) {
+        const empty = $("bilstm-empty");
+        const dl = $("bilstm-dl");
+        if (!fc) {
+          empty.textContent = "No foodclasses_bilstm_prediction";
+          empty.hidden = false;
+          dl.hidden = true;
+          return;
+        }
+        showDl(dl, [
+          ["class_name", fc.class_name],
+          ["subclass_name", fc.subclass_name],
+          ["nova_label", fc.nova_label],
+          ["class_confidence", fc.class_confidence],
+          ["subclass_confidence", fc.subclass_confidence],
+          ["nova_confidence", fc.nova_confidence],
+        ], empty);
+      }
+
+      function renderHealthierSubstitutes(hs) {
+        const subsContentEl = $("subs-content");
+        subsContentEl.innerHTML = "";
+        if (!hs) {
+          subsContentEl.innerHTML = "<p class=\"empty\">healthier_substitutes null</p>";
+          return;
+        }
+        if (!hs.triggered) {
+          const p = document.createElement("p");
+          p.className = "empty";
+          p.textContent = hs.skip_reason || "Substitutes not triggered.";
+          subsContentEl.appendChild(p);
+          return;
+        }
+        const wrap = document.createElement("div");
+        if (Array.isArray(hs.exceeded_nutrient_summary) && hs.exceeded_nutrient_summary.length) {
+          const tags = document.createElement("div");
+          tags.style.marginBottom = "0.5rem";
+          tags.style.fontSize = "0.8rem";
+          tags.style.color = "var(--text-secondary)";
+          tags.textContent = "Exceeded tags: " + hs.exceeded_nutrient_summary.join(", ");
+          wrap.appendChild(tags);
+        }
+        const meta = document.createElement("div");
+        meta.style.fontSize = "0.8rem";
+        meta.style.color = "var(--text-secondary)";
+        meta.style.marginBottom = "0.5rem";
+        meta.textContent =
+          "tier_used: " + (hs.tier_used != null ? hs.tier_used : "—") +
+          " · 1=subclass · 2=class · 3=catalog";
+        wrap.appendChild(meta);
+        if (hs.no_close_substitutes) {
+          const b = document.createElement("div");
+          b.className = "banner-warn";
+          b.textContent = "Widened tiers and/or no fully below-threshold matches in closest pool.";
+          wrap.appendChild(b);
+        }
+        const subs = hs.substitutes || [];
+        if (!subs.length) {
+          const p = document.createElement("p");
+          p.className = "empty";
+          p.textContent = hs.skip_reason || "No substitute rows.";
+          wrap.appendChild(p);
+        } else {
+          const list = document.createElement("ul");
+          list.className = "subs-list";
+          subs.forEach((s) => {
+            const li = document.createElement("li");
+            li.className = "subs-item";
+            const title = document.createElement("div");
+            title.className = "subs-item-title";
+            title.textContent = s.product_name || "—";
+            li.appendChild(title);
+            const row = document.createElement("div");
+            row.style.fontSize = "0.75rem";
+            row.style.color = "var(--text-secondary)";
+            const t1 = document.createElement("span");
+            t1.className = "pill pill-tier";
+            t1.textContent = "T" + (s.tier != null ? s.tier : "?");
+            row.appendChild(t1);
+            const t2 = document.createElement("span");
+            t2.className = "pill " + (s.below_knpm_thresholds ? "pill-ok" : "pill-warn");
+            t2.textContent = s.below_knpm_thresholds ? "Below limits" : "Has warnings";
+            row.appendChild(t2);
+            row.appendChild(document.createTextNode(
+              " · octagons: " + (s.octagon_count != null ? s.octagon_count : "—")
+            ));
+            li.appendChild(row);
+            if (s.class_name || s.subclass_name) {
+              const tx = document.createElement("div");
+              tx.style.fontSize = "0.72rem";
+              tx.style.marginTop = "0.25rem";
+              tx.textContent = [s.class_name, s.subclass_name].filter(Boolean).join(" › ");
+              li.appendChild(tx);
+            }
+            list.appendChild(li);
+          });
+          wrap.appendChild(list);
+        }
+        if (hs.explanation && String(hs.explanation).trim()) {
+          const exp = document.createElement("div");
+          exp.style.marginTop = "0.75rem";
+          exp.style.paddingTop = "0.75rem";
+          exp.style.borderTop = "1px solid var(--border)";
+          exp.style.fontSize = "0.85rem";
+          exp.textContent = hs.explanation;
+          wrap.appendChild(exp);
+        }
+        subsContentEl.appendChild(wrap);
+      }
+
+      function renderRefMatch(pm) {
+        const empty = $("refmatch-empty");
+        const dl = $("refmatch-dl");
+        if (!pm) {
+          empty.textContent = "No product_nutrition_match";
+          empty.hidden = false;
+          dl.hidden = true;
+          return;
+        }
+        showDl(dl, Object.keys(pm).map((k) => {
+          let v = pm[k];
+          if (k === "match_score") {
+            const f = formatMatchScore1dp(v);
+            if (f != null) v = f;
+          }
+          return [k, v];
+        }), empty);
+      }
+
+      function renderWarnErr(data) {
+        const wul = $("warnings-ul");
+        const eul = $("errors-ul");
+        const wEmpty = $("warn-empty");
+        const eEmpty = $("err-empty");
+        wul.innerHTML = "";
+        eul.innerHTML = "";
+        const warns = data.warnings || [];
+        const errs = data.errors || [];
+        if (warns.length) {
+          wEmpty.hidden = true;
+          wul.hidden = false;
+          warns.forEach((w) => {
+            const li = document.createElement("li");
+            li.textContent = w;
+            wul.appendChild(li);
+          });
+        } else {
+          wEmpty.hidden = false;
+          wul.hidden = true;
+        }
+        if (errs.length) {
+          eEmpty.hidden = true;
+          eul.hidden = false;
+          errs.forEach((w) => {
+            const li = document.createElement("li");
+            li.textContent = w;
+            eul.appendChild(li);
+          });
+        } else {
+          eEmpty.hidden = false;
+          eul.hidden = true;
+        }
+      }
+
+      function renderAll(data) {
+        lastData = data;
+        rawJson.textContent = JSON.stringify(data, null, 2);
+        renderExtraction(data);
+        renderProduct(data);
+        renderNutrition(data);
+        renderIngredients(data);
+        renderKnpm(data.knpm_label);
+        renderTaxonomy(data.product_classification);
+        renderBilstm(data.foodclasses_bilstm_prediction);
+        renderHealthierSubstitutes(data.healthier_substitutes);
+        renderRefMatch(data.product_nutrition_match);
+        renderWarnErr(data);
+      }
+
+      function pickFile() {
+        return fileInput.files[0] || null;
+      }
+
+      function updatePreview() {
+        const f = pickFile();
+        if (!f) {
+          previewImg.hidden = true;
+          previewPh.hidden = false;
+          return;
+        }
+        previewPh.hidden = true;
+        previewImg.hidden = false;
+        previewImg.alt = "Preview of selected image: " + (f.name || "upload");
+        previewImg.src = URL.createObjectURL(f);
+      }
+
+      fileInput.addEventListener("change", updatePreview);
+
+      $("btn-extract").addEventListener("click", async () => {
+        const file = pickFile();
+        if (!file) {
+          setStatus("Select an image", "err");
+          return;
+        }
+        const formData = new FormData();
+        formData.append("image", file);
+        setStatus("Extracting…", "loading");
+        try {
+          const response = await fetch("/extract", { method: "POST", body: formData });
+          const text = await response.text();
+          if (!response.ok) {
+            setStatus("Error " + response.status, "err");
+            rawJson.textContent = text;
+            lastData = null;
+            return;
+          }
+          const data = JSON.parse(text);
+          renderAll(data);
+          setStatus("OK", "ok");
+        } catch (e) {
+          setStatus("Network error", "err");
+          rawJson.textContent = String(e);
+          lastData = null;
+        }
+      });
+
+    })();
+  </script>
+</body>
+</html>

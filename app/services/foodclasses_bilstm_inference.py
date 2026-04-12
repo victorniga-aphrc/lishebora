@@ -16,7 +16,8 @@ from pathlib import Path
 from typing import Any
 
 from app.config import settings
-from app.models import FoodclassesBiLstmPrediction, SupermarketClassification
+from app.models import FoodclassesBiLstmPrediction, ProductClassification
+from app.utils.nova_display import normalize_nova_for_api
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,22 @@ def _ensure_loaded() -> bool:
         with e_path.open("rb") as f:
             enc = pickle.load(f)
         _state.encoders = enc if isinstance(enc, dict) else {}
+    except ModuleNotFoundError as exc:
+        if exc.name == "tensorflow":
+            if not _state.warned_once:
+                logger.warning(
+                    "Foodclasses BiLSTM disabled because TensorFlow is not installed."
+                )
+                _state.warned_once = True
+            _state.model = None
+            _state.tokenizer = None
+            _state.encoders = {}
+            return False
+        logger.exception("Failed loading foodclasses BiLSTM artifacts")
+        _state.model = None
+        _state.tokenizer = None
+        _state.encoders = {}
+        return False
     except Exception:
         logger.exception("Failed loading foodclasses BiLSTM artifacts")
         _state.model = None
@@ -185,66 +202,46 @@ def predict_foodclasses_from_product_text(
         return None
 
 
-def merge_foodclasses_with_pos(
-    pos: SupermarketClassification | None,
+def is_strong_catalog_classification(classification: ProductClassification | None) -> bool:
+    """
+    True when the reference-catalog row match is strong enough to skip BiLSTM:
+    exact product name, or fuzzy score at/above the configured weak threshold.
+    """
+    if classification is None:
+        return False
+    method = (classification.match_method or "").lower()
+    score = classification.match_score
+    if method == "db_exact_name" or method.startswith("exact_"):
+        return True
+    if method == "db_fuzzy_name" and score is not None:
+        return float(score) >= float(settings.foodclasses_bilstm_reference_weak_max_score)
+    return False
+
+
+def merge_foodclasses_with_classification(
+    classification: ProductClassification | None,
     pred: FoodclassesBiLstmPrediction | None,
-) -> SupermarketClassification | None:
-    """Merge strategy for runtime classification."""
+) -> ProductClassification | None:
+    """
+    Strong DB catalog match → keep DB class/subclass/nova.
+
+    Otherwise, when ``pred`` is present, use the model labels as-is. Confidences stay on
+    ``FoodclassesBiLstmPrediction`` for clients / future policy; they do not gate adoption here.
+    """
     if pred is None:
-        return pos
-    class_ok = (pred.class_confidence or 0.0) >= float(
-        settings.foodclasses_bilstm_min_class_confidence
+        return classification
+    if classification is not None and is_strong_catalog_classification(classification):
+        return classification
+    return ProductClassification(
+        class_name=pred.class_name,
+        subclass_name=pred.subclass_name,
+        nova=normalize_nova_for_api(pred.nova_label),
+        matched_description=classification.matched_description if classification is not None else None,
+        match_method=(
+            "bilstm_product_name_weak_fallback"
+            if classification is not None
+            else "bilstm_product_name_no_classification"
+        ),
+        match_score=None,
     )
-    subclass_ok = (pred.subclass_confidence or 0.0) >= float(
-        settings.foodclasses_bilstm_min_subclass_confidence
-    )
-    nova_ok = (pred.nova_confidence or 0.0) >= float(
-        settings.foodclasses_bilstm_min_nova_confidence
-    )
-    # If confidence is too low, keep POS taxonomy as-is.
-    if not class_ok or not subclass_ok:
-        return pos
-    if settings.foodclasses_bilstm_pos_first:
-        # POS-first hybrid: keep strong POS matches; model only when POS is weak/missing.
-        if pos is not None:
-            method = (pos.match_method or "").lower()
-            score = pos.match_score
-            pos_is_exact = method.startswith("exact_")
-            pos_is_strong = pos_is_exact or (
-                score is not None
-                and float(score) >= float(settings.foodclasses_bilstm_pos_weak_max_score)
-            )
-            if pos_is_strong:
-                return pos
-        return SupermarketClassification(
-            class_name=pred.class_name,
-            subclass_name=pred.subclass_name,
-            nova=pred.nova_label if nova_ok else (pos.nova if pos is not None else None),
-            matched_description=pos.matched_description if pos is not None else None,
-            match_method=(
-                "bilstm_product_name_pos_weak_fallback"
-                if pos is not None
-                else "bilstm_product_name_no_pos"
-            ),
-            match_score=pred.subclass_confidence,
-        )
-    if settings.foodclasses_bilstm_prefer_over_pos:
-        return SupermarketClassification(
-            class_name=pred.class_name,
-            subclass_name=pred.subclass_name,
-            nova=pred.nova_label if nova_ok else (pos.nova if pos is not None else None),
-            matched_description=pos.matched_description if pos is not None else None,
-            match_method="bilstm_product_name",
-            match_score=pred.subclass_confidence,
-        )
-    if pos is None:
-        return SupermarketClassification(
-            class_name=pred.class_name,
-            subclass_name=pred.subclass_name,
-            nova=pred.nova_label if nova_ok else None,
-            matched_description=None,
-            match_method="bilstm_product_name_fallback",
-            match_score=pred.subclass_confidence,
-        )
-    return pos
 

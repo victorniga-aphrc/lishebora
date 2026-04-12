@@ -1,18 +1,20 @@
 """
-Healthier product substitutes: tiered catalog search + KNPM ranking.
+Healthier product substitutes: tiered PostgreSQL catalog search + KNPM ranking.
 
-Tiers (retailer taxonomy when reference ``product_name`` exactly matches a POS SKU line
-after ``normalize_pack_description``):
+Tiers (based on taxonomy fields already stored in
+``catalog.reference_products``):
 
-- **Tier 1**: same POS ``subclass_name`` as the scan.
-- **Tier 2**: same POS ``class_name``, different subclass (or Tier 1 empty).
+- **Tier 1**: same ``subclass_name`` as the scan.
+- **Tier 2**: same ``class_name``, different subclass (or Tier 1 empty).
 - **Tier 3**: full reference pool (still scored with the **scan's** KNPM category limits).
 
-Within each tier, prefer the same **physical form** (liquid / solid / paste), then—for
-**drink-like** liquid scans—prefer **beverages** (juice, soft drink, milk, …) over pantry
-liquids (oils, vinegar) using ``sub_type`` and product name. Then prefer products **below**
-numeric KNPM thresholds, then lowest ``octagon_count``. Ingredient-only flags are **not**
-applied to catalog rows (no ingredients in reference CSV).
+Only catalog rows with **zero** KNPM octagons are eligible as substitutes; rows with any
+octagon are excluded. Ingredient-only flags are **not** applied to catalog rows (no
+ingredient list in the reference table).
+
+**Fill order:** take up to ``max`` substitutes from tier 1 (same subclass). If fewer than
+``min``, add from tier 2 (same class, excluding tier‑1 pool). If still short, add from
+tier 3 (rest of catalog). No skipping tier 1 when subclass matches are “unhealthy” only.
 
 This is **content-based** (item attributes + shared category limits). Co-purchase or
 matrix-factorization CF can reuse the same tier scaffold later.
@@ -32,25 +34,14 @@ from app.models import (
     SubstituteProduct,
 )
 from app.services.knpm_labeller import classify_with_knpm
-from app.services.knpm_category_thresholds import resolve_knpm_thresholds_for_extraction
-from app.services.reference_nutrition_lookup import iter_reference_products_with_nutrition
-from app.services.supermarket_lookup import pos_taxonomy_for_normalized_description
-from app.utils.pos_description import normalize_pack_description
-from app.utils.product_form import canonical_food_form, form_sort_rank, infer_scan_form
-from app.utils.substitute_practicality import (
-    infer_beverage_like_liquid_scan,
-    is_probable_pantry_liquid_substitute,
-    liquid_beverage_practicality_rank,
-)
+from app.services.reference_catalog_db import iter_reference_products_with_nutrition_db
+from app.utils.pack_description import normalize_pack_description
 
 logger = logging.getLogger(__name__)
 
 
-def _catalog_cache_key(threshold_row: object | None, thresholds_source: str | None) -> tuple[str, str]:
-    if threshold_row is None:
-        return ("__none__", thresholds_source or "hardcoded_fallback")
-    num = getattr(threshold_row, "category_number", None) or "__unknown__"
-    return (str(num), thresholds_source or "hardcoded_fallback")
+def _catalog_cache_key() -> tuple[str, str]:
+    return ("__fallback__", "thresholds_fallback")
 
 
 def _norm_taxon(s: str | None) -> str:
@@ -64,12 +55,11 @@ class _Cand:
     class_name: str | None
     subclass_name: str | None
     sub_type: str | None
-    form: str | None
     octagons: list[str]
     below: bool
 
 
-# (KNPM category_number or sentinel, thresholds_source) → scored catalog
+# fixed fallback scope cache
 _catalog_cache: dict[tuple[str, str], list[_Cand]] = {}
 
 
@@ -77,11 +67,9 @@ def _scan_class_subclass(ocr: OcrResult) -> tuple[str | None, str | None]:
     c, s = ocr.class_name, ocr.subclass_name
     fc: FoodclassesBiLstmPrediction | None = ocr.foodclasses_bilstm_prediction
     if fc is not None:
-        min_c = float(settings.foodclasses_bilstm_min_class_confidence)
-        min_s = float(settings.foodclasses_bilstm_min_subclass_confidence)
-        if not c and fc.class_name and (fc.class_confidence or 0) >= min_c:
+        if not c and fc.class_name:
             c = fc.class_name
-        if not s and fc.subclass_name and (fc.subclass_confidence or 0) >= min_s:
+        if not s and fc.subclass_name:
             s = fc.subclass_name
     return c, s
 
@@ -91,11 +79,11 @@ def _exceeded_tags(knpm: KnpmLabel | None) -> list[str]:
         return []
     tags: list[str] = []
     for o in knpm.octagons or []:
-        if o == "HIGH_IN_SUGAR":
+        if o == "high_in_sugar":
             tags.append("total_sugars_or_sweeteners")
-        elif o == "HIGH_IN_SALT":
+        elif o == "high_in_salt":
             tags.append("sodium")
-        elif o == "HIGH_IN_FAT":
+        elif o == "high_in_fat":
             tags.append("total_fat_saturated_or_trans")
     # De-dupe preserving order
     seen: set[str] = set()
@@ -110,34 +98,30 @@ def _exceeded_tags(knpm: KnpmLabel | None) -> list[str]:
 def _should_run(knpm: KnpmLabel | None) -> bool:
     if knpm is None:
         return False
-    return knpm.classification == "LESS_HEALTHY"
+    return knpm.classification == "not healthy"
 
 
-def _build_catalog_candidates(threshold_row: object | None, thresholds_source: str | None) -> list[_Cand]:
+def _build_catalog_candidates() -> list[_Cand]:
     out: list[_Cand] = []
-    for pname, nut, raw in iter_reference_products_with_nutrition():
+    for pname, nut, raw in iter_reference_products_with_nutrition_db():
         if not isinstance(nut, NutritionData):
             continue
-        nkey = normalize_pack_description(pname)
-        pos_c, pos_s = pos_taxonomy_for_normalized_description(nkey)
+        ref_class = (raw.get("class_name") or None)
+        ref_subclass = (raw.get("subclass_name") or None)
         label = classify_with_knpm(
             nut,
             has_trans_fats=False,
             has_sweeteners=False,
-            threshold_row=threshold_row,
-            thresholds_source=thresholds_source,  # type: ignore[arg-type]
-            category_match_score=None,
         )
         octs = list(label.octagons or [])
-        below = len(octs) == 0 and label.classification == "FIT_FOR_CONSUMPTION"
+        below = len(octs) == 0 and label.classification == "healthy"
         out.append(
             _Cand(
                 product_name=pname,
                 nutrition=nut,
-                class_name=pos_c,
-                subclass_name=pos_s,
+                class_name=ref_class,
+                subclass_name=ref_subclass,
                 sub_type=(raw.get("sub_type") or "").strip() or None,
-                form=(raw.get("form") or "").strip() or None,
                 octagons=octs,
                 below=below,
             )
@@ -145,54 +129,28 @@ def _build_catalog_candidates(threshold_row: object | None, thresholds_source: s
     return out
 
 
-def _sort_key_for_scan(ocr: OcrResult, scan_form: str | None, c: _Cand) -> tuple[int, int, int, int, str]:
-    """Form match → beverage practicality (drink-like liquids) → below-threshold → octagons → name."""
-    fr = form_sort_rank(scan_form, c.form)
-    pr = liquid_beverage_practicality_rank(ocr, scan_form, c)
-    return (fr, pr, 0 if c.below else 1, len(c.octagons), c.product_name.casefold())
+def _sort_key(c: _Cand) -> tuple[int, int, str]:
+    """Below-threshold first, then fewer octagons, then stable name order."""
+    return (0 if c.below else 1, len(c.octagons), c.product_name.casefold())
 
 
 def _pick_from_tier(
     tier_cands: list[_Cand],
     exclude_norm: set[str],
     need: int,
-    ocr: OcrResult,
-    scan_form: str | None,
 ) -> list[_Cand]:
     usable = [c for c in tier_cands if normalize_pack_description(c.product_name) not in exclude_norm]
-    usable.sort(key=lambda c: _sort_key_for_scan(ocr, scan_form, c))
-
-    # Drink-like liquid scans: use only “beverage-practical” rows (rank < 2) until we run out,
-    # so oils/vinegars do not fill slots while enough juices/drinks exist in this tier.
-    if infer_beverage_like_liquid_scan(ocr, scan_form):
-        good = [c for c in usable if liquid_beverage_practicality_rank(ocr, scan_form, c) < 2]
-        if len(good) >= need:
-            return good[:need]
-        seen: set[str] = set()
-        out: list[_Cand] = []
-        for c in good:
-            k = normalize_pack_description(c.product_name)
-            if k in seen:
-                continue
-            seen.add(k)
-            out.append(c)
-            if len(out) >= need:
-                return out
-        for c in usable:
-            if len(out) >= need:
-                break
-            k = normalize_pack_description(c.product_name)
-            if k in seen:
-                continue
-            seen.add(k)
-            out.append(c)
-        return out
-
+    usable.sort(key=_sort_key)
     return usable[:need]
 
 
 def _norm_key(name: str) -> str:
     return normalize_pack_description(name)
+
+
+def _zero_octagon_candidate(c: _Cand) -> bool:
+    """Substitutes must have no KNPM octagons on the reference row."""
+    return len(c.octagons) == 0
 
 
 def build_healthier_substitutes(
@@ -217,30 +175,25 @@ def build_healthier_substitutes(
     knpm = ocr.knpm_label
     if not _should_run(knpm):
         reason = "Product is not flagged as less healthy (KNPM), or classification unavailable."
-        if knpm and knpm.classification == "UNKNOWN":
+        if knpm and knpm.classification == "unknown":
             reason = "KNPM classification unknown — substitutes not suggested."
-        if knpm and knpm.classification == "FIT_FOR_CONSUMPTION":
+        if knpm and knpm.classification == "healthy":
             reason = "Product is within assessed KNPM limits — no substitutes suggested."
         return HealthierSubstituteResult(triggered=False, skip_reason=reason)
 
     max_n = max(1, min(20, int(settings.substitute_max_results)))
     min_n = max(1, min(max_n, int(settings.substitute_min_results)))
 
-    thr_row, thr_source, _ = resolve_knpm_thresholds_for_extraction(
-        ocr.product_info,
-        ocr.supermarket_classification,
-    )
-
     try:
-        ck = _catalog_cache_key(thr_row, thr_source)
+        ck = _catalog_cache_key()
         if ck not in _catalog_cache:
-            _catalog_cache[ck] = _build_catalog_candidates(thr_row, thr_source)
+            _catalog_cache[ck] = _build_catalog_candidates()
         all_cands = _catalog_cache[ck]
     except Exception:
         logger.exception("Failed to build substitute catalog")
         return HealthierSubstituteResult(
             triggered=True,
-            skip_reason="Catalog load failed — check reference_nutrition_lookup.csv.",
+            skip_reason="Catalog load failed — check PostgreSQL catalog.reference_products (see REFERENCE_CATALOG_* env).",
             exceeded_nutrient_summary=_exceeded_tags(knpm),
         )
 
@@ -251,9 +204,6 @@ def build_healthier_substitutes(
         if ocr.product_info and ocr.product_info.brand:
             combo = f"{ocr.product_info.brand.strip()} {scan_name}".strip()
             exclude.add(normalize_pack_description(combo))
-
-    scan_form = infer_scan_form(ocr)
-    beverage_context = infer_beverage_like_liquid_scan(ocr, scan_form)
 
     scan_c, scan_s = _scan_class_subclass(ocr)
     nc, ns = _norm_taxon(scan_c), _norm_taxon(scan_s)
@@ -272,35 +222,30 @@ def build_healthier_substitutes(
         else:
             tier3.append(c)
 
-    tier1_any_below = any(
-        c.below for c in tier1 if _norm_key(c.product_name) not in exclude
-    )
+    tier1 = [c for c in tier1 if _zero_octagon_candidate(c)]
+    tier2 = [c for c in tier2 if _zero_octagon_candidate(c)]
+    tier3 = [c for c in tier3 if _zero_octagon_candidate(c)]
 
     chosen: list[tuple[int, _Cand]] = []
     seen_keys: set[str] = set()
 
-    def _add_tier(tier_num: int, picks: list[_Cand]) -> None:
-        for c in picks:
+    def _add_from_pool(tier_num: int, pool: list[_Cand]) -> None:
+        need = max_n - len(chosen)
+        if need <= 0:
+            return
+        for c in _pick_from_tier(pool, exclude, need):
             k = _norm_key(c.product_name)
             if k in seen_keys:
                 continue
             seen_keys.add(k)
             chosen.append((tier_num, c))
 
-    # Tier 1: same subclass — prefer below-threshold (via sort) when any exist.
-    if tier1_any_below or not tier1:
-        _add_tier(1, _pick_from_tier(tier1, exclude, max_n, ocr, scan_form))
-    # If subclass pool exists but nothing is below threshold, skip filling with "bad" T1-only
-    # and widen to class (T2) then catalog (T3), per product policy.
-    elif tier1 and not tier1_any_below:
-        _add_tier(2, _pick_from_tier(tier2, exclude, max_n, ocr, scan_form))
-        if len(chosen) < min_n:
-            _add_tier(3, _pick_from_tier(tier3, exclude, max_n - len(chosen), ocr, scan_form))
-
+    # Strict taxonomy waterfall: subclass → class → full catalog (within max_n).
+    _add_from_pool(1, tier1)
     if len(chosen) < min_n:
-        _add_tier(2, _pick_from_tier(tier2, exclude, max_n - len(chosen), ocr, scan_form))
+        _add_from_pool(2, tier2)
     if len(chosen) < min_n:
-        _add_tier(3, _pick_from_tier(tier3, exclude, max_n - len(chosen), ocr, scan_form))
+        _add_from_pool(3, tier3)
 
     chosen = chosen[:max_n]
 
@@ -311,7 +256,10 @@ def build_healthier_substitutes(
             tier_used=3,
             no_close_substitutes=True,
             substitutes=[],
-            skip_reason="No alternative products with nutrition data found in the reference catalog.",
+            skip_reason=(
+                "No reference products with zero KNPM octagons were found in the PostgreSQL "
+                "reference table for this taxonomy search."
+            ),
         )
 
     tier_used = max(t for t, _ in chosen)
@@ -325,34 +273,17 @@ def build_healthier_substitutes(
             octagons=c.octagons,
             below_knpm_thresholds=c.below,
             sub_type=c.sub_type,
-            form=c.form,
+            form=None,
         )
         for tier_num, c in chosen
     ]
 
     no_close = tier_used > 1 or (not any(s.below_knpm_thresholds for s in subs))
 
-    other_forms = False
-    if scan_form:
-        for s in subs:
-            cf = canonical_food_form(s.form)
-            if cf is not None and cf != scan_form:
-                other_forms = True
-                break
-
-    pantry_in_list = False
-    if beverage_context:
-        for s in subs:
-            if is_probable_pantry_liquid_substitute(s.product_name, s.sub_type):
-                pantry_in_list = True
-                break
-
     approach = (
-        "Ranked from reference_nutrition_lookup using POS taxonomy (exact description match), "
-        "the same KNPM category limits as this scan, and—when possible—the same pack form "
-        "(liquid / solid / paste). For drink-like liquid scans, **beverages** (juice, soft drink, "
-        "milk, …) are preferred over **pantry liquids** (oils, vinegar) using reference ``sub_type`` "
-        "and names. Collaborative filtering from user/scan co-occurrence can be layered on top later."
+        "Substitutes are limited to reference rows with zero KNPM octagons. "
+        "Order: same subclass, then same class, then full catalog; within each tier, "
+        "sort by healthy profile then name."
     )
 
     return HealthierSubstituteResult(
@@ -360,10 +291,10 @@ def build_healthier_substitutes(
         exceeded_nutrient_summary=_exceeded_tags(knpm),
         tier_used=tier_used,
         no_close_substitutes=no_close,
-        inferred_scan_form=scan_form,
-        inferred_substitute_use_context="beverage_drink" if beverage_context else None,
-        substitutes_include_other_forms=other_forms,
-        substitutes_include_pantry_liquids=pantry_in_list,
+        inferred_scan_form=None,
+        inferred_substitute_use_context=None,
+        substitutes_include_other_forms=False,
+        substitutes_include_pantry_liquids=False,
         substitutes=subs,
         approach_note=approach,
     )
@@ -386,26 +317,14 @@ def template_explanation(ocr: OcrResult, result: HealthierSubstituteResult) -> s
                 "Alternatives such as "
                 + ", ".join(better[:3])
                 + ("…" if len(better) > 3 else "")
-                + " stay within the same nutrient limits for this food category and show fewer or no black octagons."
+                + " show no black octagons under KNPM on the reference nutrition we have."
             )
         else:
             parts.append(
-                "Listed alternatives still have some warnings but may have fewer octagons than your product within our reference set."
+                "Listed alternatives have no black octagons on their reference nutrition rows."
             )
     if result.no_close_substitutes:
         parts.append(
             "We widened the search beyond your exact retail sub-category because no close below-threshold matches were found."
-        )
-    if result.inferred_scan_form:
-        parts.append(
-            f"We ranked alternatives to prefer the same pack form ({result.inferred_scan_form}) when the reference data includes it."
-        )
-    if result.substitutes_include_other_forms:
-        parts.append(
-            "Some suggestions may be a different form (e.g. solid) if few same-form options met the nutrition criteria."
-        )
-    if result.substitutes_include_pantry_liquids:
-        parts.append(
-            "Some listed liquids are oils or condiments—only shown because the database returned few drink-style alternatives under the same KNPM limits."
         )
     return " ".join(parts) if parts else "See substitute list for reference products with better KNPM profiles."

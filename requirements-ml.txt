@@ -1,2 +1,0 @@
-# Backwards-compatible alias: all app dependencies (including TensorFlow) live in requirements.txt.
--r requirements.txt

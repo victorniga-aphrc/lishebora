@@ -4,8 +4,8 @@ Build a cleaned reference nutrition table from data/all_categories_combined.csv.
 
 Steps:
   - Drop junk / retail-only columns (price, unnamed indexes, etc.).
-  - Normalize product names with the same pack-size rules as POS lookup
-    (app.utils.pos_description.normalize_pack_description).
+  - Normalize product names with the same pack-size rules as catalog matching
+    (app.utils.pack_description.normalize_pack_description).
   - Parse numeric nutrients (strip kcal, kJ, g, mg); sodium stored as g/100g like the app.
   - Interpret PortionType internally: per-100g/ml as-is; scale per-Xg rows to per-100g;
     per-serving / unknown → no scaling (values left empty where scaling is unsafe).
@@ -30,7 +30,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from app.utils.pos_description import normalize_pack_description
+from app.utils.pack_description import normalize_pack_description
 
 # --------------------------------------------------------------------------- #
 # Parsing

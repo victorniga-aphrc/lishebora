@@ -42,11 +42,15 @@ services:
       db:
         condition: service_healthy
     volumes:
-      # Mount code for development (optional - remove for production)
+      # Development mounts (drop for a pure image-only deploy)
       - ./app:/app/app
-      # Mount alembic for migrations
+      - ./static:/app/static
+      - ./octagon_images:/app/octagon_images
+      - ./models:/app/models
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
+    # Uncomment for auto-reload when editing mounted ./app code:
+    # command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     networks:
       - lishebora_network
     restart: unless-stopped

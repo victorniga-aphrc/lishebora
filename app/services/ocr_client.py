@@ -6,33 +6,32 @@ from typing import Any, List
 
 import anyio
 from openai import OpenAI
+from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.db import SessionLocal
 from app.models import (
+    ExtractedData,
     ExtractionMetadata,
     Ingredient,
     NutritionData,
+    NutritionResolution,
     OcrResult,
+    ParsedData,
+    ProductNutritionMatchMetadata,
     ProductInfo,
 )
-from app.services.classification_consistency import (
-    warning_pos_taxonomy_vs_label_sugar,
-)
-from app.services.knpm_category_thresholds import (
-    resolve_knpm_thresholds_for_extraction,
-)
 from app.services.foodclasses_bilstm_inference import (
-    merge_foodclasses_with_pos,
+    is_strong_catalog_classification,
+    merge_foodclasses_with_classification,
     predict_foodclasses_from_product_text,
 )
 from app.services.knpm_labeller import classify_with_knpm
-from app.services.nova_bilstm_inference import (
-    maybe_fill_supermarket_nova,
-    predict_nova_from_product_text,
+from app.services.reference_catalog_db import (
+    lookup_product_classification_db,
+    lookup_reference_nutrition_db,
 )
-from app.services.reference_nutrition_lookup import lookup_reference_nutrition
 from app.services.recommendation_explainer import attach_healthier_recommendations
-from app.services.supermarket_lookup import lookup_supermarket_classification
 
 
 class OcrClientError(Exception):
@@ -85,7 +84,7 @@ def _validate_nutrition_value(value: Any, field_name: str) -> float | None:
         if float_value < 0:
             return None
         # Check for impossibly high values (e.g., >100g per 100g is impossible)
-        if field_name in ["total_fat", "saturated_fat", "trans_fat", "protein", "carbohydrates", "fiber"]:
+        if field_name in ["total_fat", "trans_fat", "total_sugar"]:
             if float_value > 100:
                 return None
         return float_value
@@ -99,63 +98,33 @@ def _parse_nutrition_data(data: dict) -> NutritionData | None:
     if not nutrition_dict or not isinstance(nutrition_dict, dict):
         return None
     
-    # Parse core KNPM nutrients
+    # Parse pipeline-active nutrients only
     core_nutrients = {
-        "energy_kcal": _validate_nutrition_value(nutrition_dict.get("energy_kcal"), "energy_kcal"),
         "total_fat": _validate_nutrition_value(nutrition_dict.get("total_fat"), "total_fat"),
-        "saturated_fat": _validate_nutrition_value(nutrition_dict.get("saturated_fat"), "saturated_fat"),
         "trans_fat": _validate_nutrition_value(nutrition_dict.get("trans_fat"), "trans_fat"),
         "total_sugar": _validate_nutrition_value(nutrition_dict.get("total_sugar"), "total_sugar"),
         "sodium": _validate_nutrition_value(nutrition_dict.get("sodium"), "sodium"),
-        "protein": _validate_nutrition_value(nutrition_dict.get("protein"), "protein"),
-        "carbohydrates": _validate_nutrition_value(nutrition_dict.get("carbohydrates"), "carbohydrates"),
-        "fiber": _validate_nutrition_value(nutrition_dict.get("fiber"), "fiber"),
     }
-    
-    # Parse additional nutrients (potassium, calcium, iron, vitamins, etc.)
-    additional_nutrients_raw = nutrition_dict.get("additional_nutrients", {})
-    additional_nutrients: dict[str, float] = {}
-    
-    if isinstance(additional_nutrients_raw, dict):
-        for nutrient_name, value in additional_nutrients_raw.items():
-            validated_value = _validate_nutrition_value(value, nutrient_name)
-            if validated_value is not None:
-                # Normalize nutrient name (lowercase, replace spaces with underscores)
-                normalized_name = str(nutrient_name).lower().strip().replace(" ", "_")
-                additional_nutrients[normalized_name] = validated_value
-    
+
     return NutritionData(
-        energy_kcal=core_nutrients["energy_kcal"],
         total_fat=core_nutrients["total_fat"],
-        saturated_fat=core_nutrients["saturated_fat"],
         trans_fat=core_nutrients["trans_fat"],
         total_sugar=core_nutrients["total_sugar"],
         sodium=core_nutrients["sodium"],
-        protein=core_nutrients["protein"],
-        carbohydrates=core_nutrients["carbohydrates"],
-        fiber=core_nutrients["fiber"],
-        additional_nutrients=additional_nutrients,
     )
 
 
-def _nutrition_has_numeric_values(nutrition: NutritionData | None) -> bool:
-    """True if any per-100g number is present (same idea as KNPM labeller)."""
+def is_usable_nutrition(nutrition: NutritionData | None) -> bool:
+    """True when at least one pipeline nutrient has a numeric value."""
     if nutrition is None:
         return False
-    if nutrition.additional_nutrients:
-        return True
     return any(
         getattr(nutrition, field) is not None
         for field in (
-            "energy_kcal",
             "total_fat",
-            "saturated_fat",
             "trans_fat",
             "total_sugar",
             "sodium",
-            "protein",
-            "carbohydrates",
-            "fiber",
         )
     )
 
@@ -167,17 +136,109 @@ def _optional_str(value: Any) -> str | None:
     return s or None
 
 
+def _optional_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "yes", "1"}:
+            return True
+        if lowered in {"false", "no", "0"}:
+            return False
+    return None
+
+
+def _coerce_str_list(value: Any) -> list[str]:
+    if isinstance(value, list):
+        out: list[str] = []
+        for item in value:
+            text = _optional_str(item)
+            if text:
+                out.append(text)
+        return out
+    text = _optional_str(value)
+    return [text] if text else []
+
+
+def _coerce_confidence_map(value: Any) -> dict[str, float]:
+    if isinstance(value, (int, float)):
+        return {"overall": float(value)}
+    if isinstance(value, str):
+        try:
+            return {"overall": float(value.strip())}
+        except ValueError:
+            return {}
+    if not isinstance(value, dict):
+        return {}
+    out: dict[str, float] = {}
+    for key, raw in value.items():
+        try:
+            out[str(key)] = float(raw)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _build_extracted_data(
+    text_response: str,
+    parsed_json: dict[str, Any] | None,
+    parse_error: str | None = None,
+) -> ExtractedData:
+    parsed = parsed_json or {}
+    product_info = parsed.get("product_info") if isinstance(parsed.get("product_info"), dict) else {}
+    visual = parsed.get("visual_analysis") if isinstance(parsed.get("visual_analysis"), dict) else {}
+    raw_text = _optional_str(parsed.get("raw_text"))
+    raw_ingredients_text = _optional_str(parsed.get("raw_ingredients_text"))
+    raw_nutrition_table_text = _optional_str(parsed.get("raw_nutrition_table_text"))
+    raw_front_text = _optional_str(parsed.get("raw_front_text")) or raw_text
+    detected_barcodes = _coerce_str_list(parsed.get("detected_barcodes"))
+    barcode = _optional_str(product_info.get("barcode"))
+    if barcode and barcode not in detected_barcodes:
+        detected_barcodes.append(barcode)
+    detected_logos = _coerce_str_list(parsed.get("detected_logos"))
+    brand = _optional_str(product_info.get("brand"))
+    if brand and brand not in detected_logos:
+        detected_logos.append(brand)
+    visual_labels = _coerce_str_list(visual.get("labels"))
+    visual_product_type = _optional_str(product_info.get("visual_product_type"))
+    category = _optional_str(product_info.get("category"))
+    if not visual_labels and visual_product_type:
+        visual_labels = [visual_product_type]
+    elif not visual_labels and category:
+        visual_labels = [category]
+    return ExtractedData(
+        raw_response_text=text_response or None,
+        parsed_json=parsed_json,
+        raw_front_text=raw_front_text,
+        raw_ingredients_text=raw_ingredients_text,
+        raw_nutrition_table_text=raw_nutrition_table_text,
+        detected_barcodes=detected_barcodes,
+        detected_logos=detected_logos,
+        visual_is_food=_optional_bool(visual.get("is_food")),
+        visual_is_packaged_retail_food=_optional_bool(
+            visual.get("is_packaged_retail_food")
+        ),
+        visual_labels=visual_labels,
+        visual_confidence=_coerce_confidence_map(visual.get("confidence")),
+        visual_notes=_optional_str(visual.get("notes")),
+        parse_error=parse_error,
+    )
+
+
 def _parse_product_info(data: dict) -> ProductInfo | None:
     """Parse product information from the model's JSON response."""
     product_dict = data.get("product_info")
     if not product_dict or not isinstance(product_dict, dict):
         return None
 
+    name = _optional_str(product_dict.get("name"))
+    visual_product_type = _optional_str(product_dict.get("visual_product_type"))
+
     return ProductInfo(
-        name=_optional_str(product_dict.get("name")),
+        name=name or visual_product_type,
         brand=_optional_str(product_dict.get("brand")),
         category=_optional_str(product_dict.get("category")),
-        visual_product_type=_optional_str(product_dict.get("visual_product_type")),
+        visual_product_type=visual_product_type,
         barcode=_optional_str(product_dict.get("barcode")),
     )
 
@@ -242,19 +303,77 @@ def _parse_ingredients_from_model_text(text: str) -> List[Ingredient]:
     return ingredients
 
 
-async def extract_ingredients_from_image(
+def parse_extracted_data(extracted_data: ExtractedData) -> ParsedData:
+    """Convert grouped raw extraction output into structured parsed data."""
+    parsed_json = extracted_data.parsed_json or {}
+    product_info = _parse_product_info(parsed_json)
+    visual_labels = extracted_data.visual_labels
+
+    # For text-light images, use a visual label as fallback name so downstream DB lookup has a query string.
+    # Unpackaged retail scenes should be stopped in _process_food_product_with_db before heavy steps.
+    if product_info is None and visual_labels:
+        product_info = ProductInfo(name=visual_labels[0], visual_product_type=visual_labels[0])
+    elif product_info is not None and not product_info.name and visual_labels:
+        product_info.name = visual_labels[0]
+
+    return ParsedData(
+        ingredients=_parse_ingredients_from_model_text(
+            extracted_data.raw_response_text or ""
+        ),
+        nutrition=_parse_nutrition_data(parsed_json),
+        product_info=product_info,
+        visual_is_food=extracted_data.visual_is_food,
+        visual_is_packaged_retail_food=extracted_data.visual_is_packaged_retail_food,
+        visual_labels=visual_labels,
+    )
+
+
+def resolve_nutrition_data(
+    parsed_data: ParsedData,
+    db: Session | None,
+) -> NutritionResolution:
+    """Resolve nutrition from label first, then product DB."""
+    nutrition_data = parsed_data.nutrition
+    product_nutrition_match = None
+    nutrition_source = "unavailable"
+    lookup_error = None
+
+    if is_usable_nutrition(nutrition_data):
+        nutrition_source = "image"
+    else:
+        db_nut, db_meta = lookup_reference_nutrition_db(parsed_data.product_info, db)
+        if db_nut is not None and db_meta is not None:
+            nutrition_data = db_nut
+            product_nutrition_match = ProductNutritionMatchMetadata(
+                row_id=None,
+                match_method=db_meta.match_method,
+                matched_product_name=db_meta.matched_product_name,
+                match_score=db_meta.match_score,
+                sub_type=db_meta.sub_type,
+                form=db_meta.form,
+            )
+            nutrition_source = settings.reference_catalog_source_label
+
+    return NutritionResolution(
+        nutrition_data=nutrition_data,
+        nutrition_source=nutrition_source,
+        product_nutrition_match=product_nutrition_match,
+        lookup_error=lookup_error,
+    )
+
+
+async def process_food_image(
     image_bytes: bytes,
-    user_goal: str | None = None,
-) -> OcrResult:
+) -> ExtractedData:
     """
     Core OCR entry point using GPT-4.1-mini via OpenAI directly.
 
     - Accepts raw image bytes.
     - Sends them to OpenAI's vision-capable GPT-4.1-mini model with the image
       passed as an inline base64 data URL.
-    - Asks the model to return a strict JSON structure with ingredients,
-      nutrition facts, product info, and extraction metadata.
-    - Parses the response into our internal `OcrResult` model.
+    - Asks the model to return a strict JSON structure with grouped raw text,
+      visual cues, and parseable extraction fields.
+    - Returns grouped raw extraction output for later pipeline steps.
     """
     if not image_bytes:
         raise OcrClientError("Empty image payload")
@@ -267,34 +386,45 @@ async def extract_ingredients_from_image(
 
     system_prompt = (
         "You are an OCR and food label extraction engine. "
-        "You receive an image of a food product label and must extract:\n"
+        "You receive an image that may show an edible item or a non-food item. "
+        "For this task, food means any edible item, including packaged foods, drinks, "
+        "spices, condiments, seasonings, and cooking ingredients. You must extract:\n"
         "1. Ingredients list (if visible)\n"
-        "2. Nutrition facts table (if visible) - extract ALL nutrients visible in the table\n"
+        "2. Nutrition facts table (if visible) - extract required pipeline nutrients\n"
         "3. Product name, brand, category from printed text (if visible)\n"
         "4. Barcode (if visible)\n"
         "5. Visual product type: infer from the **whole image** (pack shape, photos, logos, "
         "layout, colours) what the product **is** in plain English when text does not give a "
         "clear category, or to add detail (e.g. \"orange juice drink\", \"instant noodle cup\", "
-        "\"chocolate wafer\"). Do NOT invent retailer/POS class codes. Use null if you cannot "
+        "\"chocolate wafer\"). Do NOT invent internal taxonomy codes. Use null if you cannot "
         "reasonably infer it.\n\n"
         "Return a single JSON object with these keys:\n"
         '   - \"ingredients\": array of strings (empty array if not found)\n'
-        '   - \"nutrition_per_100g\": object with:\n'
-        '     * Core nutrients (use null if NOT in the image): energy_kcal, total_fat, '
-        'saturated_fat, trans_fat, total_sugar, sodium, protein, carbohydrates, fiber\n'
-        '     * \"additional_nutrients\": object with ALL other nutrients found in the table '
-        '(e.g., potassium, calcium, iron, vitamins, etc.) as key-value pairs\n'
-        '       Example: {\"potassium\": 200, \"calcium\": 50, \"iron\": 2.5}\n'
+        '   - \"nutrition_per_100g\": object with keys: total_fat, '
+        'trans_fat, total_sugar, sodium (use null if NOT in the image)\n'
         '   - \"product_info\": object with keys: name, brand, category, barcode, '
         'visual_product_type (use null for any unknown field; always include all keys)\n'
         '   - \"raw_text\": string with all text you read from the label\n'
+        '   - \"raw_front_text\": string with front-of-pack / main visible text\n'
+        '   - \"raw_ingredients_text\": string with ingredients text\n'
+        '   - \"raw_nutrition_table_text\": string with nutrition table text\n'
+        '   - \"detected_barcodes\": array of strings\n'
+        '   - \"detected_logos\": array of strings (brand or logo hints)\n'
+        '   - \"visual_analysis\": object with keys: is_food, is_packaged_retail_food, labels, confidence, notes\n'
         '   - \"extraction_metadata\": object with boolean keys: ingredients_found, '
         'nutrition_facts_found, product_name_found, barcode_found\n\n'
         "IMPORTANT:\n"
-        "- Extract ALL nutrients visible in the nutrition facts table, not just the core ones\n"
-        "- For core nutrients: use null ONLY if that nutrient is NOT in the image\n"
-        "- For additional nutrients: include EVERY nutrient you see (potassium, calcium, iron, vitamins, etc.)\n"
+        "- Extract only these nutrition keys: total_fat, trans_fat, total_sugar, sodium\n"
+        "- For each key above: use null ONLY if that nutrient is NOT in the image\n"
         "- Extract nutrition values as numbers (grams per 100g/100ml, or as shown on label)\n"
+        "- Set visual_analysis.labels to at least one plain-English item/type when you can visually identify the object or product\n"
+        "- Set visual_analysis.confidence as either a single number (overall confidence) or an object of named confidence scores\n"
+        "- If the image is clearly non-food, set visual_analysis.is_food to false and explain briefly in visual_analysis.notes\n"
+        "- If the image shows an edible item such as spices, condiments, or cooking ingredients, set visual_analysis.is_food to true\n"
+        "- Set visual_analysis.is_packaged_retail_food to true only when the photo shows a retail packaged product "
+        "with consumer packaging and/or printed label areas (bottle, jar, can, carton, bag, box, shrink-wrapped multipack, etc.). "
+        "Set it to false for loose/unpackaged food (e.g. single tomatoes, bulk produce, deli meat on a tray without branded retail sleeve, "
+        "restaurant plates, home-cooked meals, or unpackaged ingredients). Use null only if you truly cannot tell.\n"
         "- If a section is not visible, set the corresponding field to null or empty array\n"
         "- Set extraction_metadata flags to true only if you actually found that information\n"
         "- Return ONLY JSON, no explanations or commentary"
@@ -307,7 +437,9 @@ async def extract_ingredients_from_image(
     user_prompt = (
         "Extract all information from this food label image and return ONLY "
         "a JSON object with the keys 'ingredients', 'nutrition_per_100g', "
-        "'product_info', 'raw_text', and 'extraction_metadata' as previously described."
+        "'product_info', 'raw_text', 'raw_front_text', 'raw_ingredients_text', "
+        "'raw_nutrition_table_text', 'detected_barcodes', 'detected_logos', "
+        "'visual_analysis', and 'extraction_metadata' as previously described."
     )
 
     client = OpenAI(api_key=settings.openai_api_key)
@@ -346,33 +478,65 @@ async def extract_ingredients_from_image(
     # Clean and parse the response
     cleaned_response = _clean_response_text(text_response)
     if not cleaned_response:
-        # If we can't parse anything, return minimal result with error
-        return OcrResult(
-            ingredients=[],
-            nutrition_per_100g=None,
-            product_info=None,
-            raw_text=None,
-            extraction_metadata=ExtractionMetadata(
-                ingredients_found=False,
-                nutrition_facts_found=False,
-                product_name_found=False,
-                barcode_found=False,
-            ),
-            warnings=[],
-            errors=[
-                "Could not extract any data from the image. Please ensure the label is clearly visible."
-            ],
-            model_raw_output={"output": text_response},
+        return _build_extracted_data(
+            text_response=text_response,
+            parsed_json=None,
+            parse_error="Could not extract any data from the image. Please ensure the label is clearly visible.",
         )
 
     try:
         parsed = json.loads(cleaned_response)
     except json.JSONDecodeError:
-        # If JSON parsing fails, return error
+        return _build_extracted_data(
+            text_response=text_response,
+            parsed_json=None,
+            parse_error="Failed to parse model response as JSON",
+        )
+
+    return _build_extracted_data(
+        text_response=text_response,
+        parsed_json=parsed,
+    )
+
+
+async def process_food_product(
+    image_bytes: bytes,
+    user_goal: str | None = None,
+    db: Session | None = None,
+) -> OcrResult:
+    local_db = None
+    if db is None:
+        local_db = SessionLocal()
+        db = local_db
+
+    try:
+        return await _process_food_product_with_db(
+            image_bytes=image_bytes,
+            user_goal=user_goal,
+            db=db,
+        )
+    finally:
+        if local_db is not None:
+            local_db.close()
+
+
+async def _process_food_product_with_db(
+    image_bytes: bytes,
+    user_goal: str | None,
+    db: Session | None,
+) -> OcrResult:
+    extracted_data = await process_food_image(
+        image_bytes=image_bytes,
+    )
+    if extracted_data.parsed_json is None:
         return OcrResult(
             ingredients=[],
             nutrition_per_100g=None,
             product_info=None,
+            visual_is_food=None,
+            visual_is_packaged_retail_food=None,
+            visual_labels=[],
+            parse_error=extracted_data.parse_error,
             raw_text=None,
             extraction_metadata=ExtractionMetadata(
                 ingredients_found=False,
@@ -381,28 +545,16 @@ async def extract_ingredients_from_image(
                 barcode_found=False,
             ),
             warnings=[],
-            errors=["Failed to parse model response as JSON"],
-            model_raw_output={"output": text_response},
+            errors=[extracted_data.parse_error or "Failed to parse model response"],
+            model_raw_output={"output": extracted_data.raw_response_text},
         )
 
-    # Parse all fields
-    ingredients = _parse_ingredients_from_model_text(text_response)
-    label_nutrition = _parse_nutrition_data(parsed)
-    nutrition_data = label_nutrition
-    product_info = _parse_product_info(parsed)
+    parsed_data = parse_extracted_data(extracted_data)
+    parsed = extracted_data.parsed_json
+    ingredients = parsed_data.ingredients
+    label_nutrition = parsed_data.nutrition
+    product_info = parsed_data.product_info
 
-    reference_nutrition_match = None
-    nutrition_from_ref = False
-    if settings.reference_nutrition_lookup_enabled and not _nutrition_has_numeric_values(
-        nutrition_data
-    ):
-        ref_nut, ref_meta = lookup_reference_nutrition(product_info)
-        if ref_nut is not None and ref_meta is not None:
-            nutrition_data = ref_nut
-            reference_nutrition_match = ref_meta
-            nutrition_from_ref = True
-
-    # Get extraction metadata
     metadata_dict = parsed.get("extraction_metadata", {})
     label_nutrition_present = label_nutrition is not None
     extraction_metadata = ExtractionMetadata(
@@ -418,11 +570,55 @@ async def extract_ingredients_from_image(
             "barcode_found",
             product_info is not None and product_info.barcode is not None,
         ),
-        nutrition_from_reference_lookup=nutrition_from_ref,
     )
-    
-    # Get raw text
+
     raw_text_value = parsed.get("raw_text") if isinstance(parsed.get("raw_text"), str) else None
+
+    if extracted_data.visual_is_food is False:
+        return OcrResult(
+            ingredients=ingredients,
+            nutrition_per_100g=None,
+            product_info=product_info,
+            visual_is_food=extracted_data.visual_is_food,
+            visual_is_packaged_retail_food=extracted_data.visual_is_packaged_retail_food,
+            visual_labels=extracted_data.visual_labels,
+            parse_error=extracted_data.parse_error,
+            raw_text=raw_text_value,
+            extraction_metadata=extraction_metadata,
+            warnings=[],
+            errors=["Image was identified as non-food. Analysis stopped after visual assessment."],
+            model_raw_output={"output": extracted_data.raw_response_text},
+            nutrition_source="unavailable",
+        )
+
+    if extracted_data.visual_is_packaged_retail_food is False:
+        return OcrResult(
+            ingredients=ingredients,
+            nutrition_per_100g=None,
+            product_info=product_info,
+            visual_is_food=extracted_data.visual_is_food,
+            visual_is_packaged_retail_food=False,
+            visual_labels=extracted_data.visual_labels,
+            parse_error=extracted_data.parse_error,
+            raw_text=raw_text_value,
+            extraction_metadata=extraction_metadata,
+            warnings=[],
+            errors=[
+                "This image does not appear to show a packaged retail product with a food label "
+                "(for example loose produce or unpackaged food). Analysis stopped. "
+                "This app is intended for scanning packaged foods with labels.",
+            ],
+            model_raw_output={"output": extracted_data.raw_response_text},
+            nutrition_source="unavailable",
+        )
+
+    nutrition_resolution = resolve_nutrition_data(parsed_data, db)
+    nutrition_data = nutrition_resolution.nutrition_data
+    product_nutrition_match = nutrition_resolution.product_nutrition_match
+    nutrition_from_product_db = (
+        nutrition_resolution.nutrition_source
+        == settings.reference_catalog_source_label
+    )
     
     # Generate warnings and errors
     warnings: List[str] = []
@@ -433,21 +629,22 @@ async def extract_ingredients_from_image(
     
     if not extraction_metadata.nutrition_facts_found:
         warnings.append("Nutrition facts table not found in image")
-
-    if nutrition_from_ref:
+    if nutrition_resolution.lookup_error:
+        errors.append(nutrition_resolution.lookup_error)
+    if nutrition_from_product_db:
         warnings.append(
-            "Nutrition per 100 g/ml was filled from the in-app reference database "
-            "(product name match), not read from the label image."
+            "Nutrition per 100 g/ml was filled from the reference nutrition lookup table "
+            "because parsed label nutrition was unavailable."
         )
 
-    if not _nutrition_has_numeric_values(nutrition_data):
+    if not is_usable_nutrition(nutrition_data):
         errors.append("Cannot perform KNPM labeling - nutrition data required")
 
     if not extraction_metadata.product_name_found:
         warnings.append("Product name not found in image")
 
     # If both ingredients and usable nutrition are missing, add error
-    if not extraction_metadata.ingredients_found and not _nutrition_has_numeric_values(
+    if not extraction_metadata.ingredients_found and not is_usable_nutrition(
         nutrition_data
     ):
         errors.append("Insufficient data extracted - both ingredients and nutrition facts are missing")
@@ -469,86 +666,33 @@ async def extract_ingredients_from_image(
         if has_sweeteners:
             warnings.append("Artificial sweeteners detected in ingredients list")
 
-    # POS taxonomy first so KNPM can use subclass/class text in category-threshold hints.
-    supermarket_classification = lookup_supermarket_classification(product_info)
+    # Taxonomy from the same reference table as nutrition; BiLSTM only when lookup is null or weak.
+    product_classification = lookup_product_classification_db(product_info, db)
     foodclasses_bilstm_prediction = None
     if settings.foodclasses_bilstm_enabled and product_info is not None:
-        foodclasses_bilstm_prediction = predict_foodclasses_from_product_text(
-            product_info.name,
-            product_info.brand,
-        )
-        if foodclasses_bilstm_prediction is not None:
-            c_ok = (foodclasses_bilstm_prediction.class_confidence or 0.0) >= float(
-                settings.foodclasses_bilstm_min_class_confidence
+        if not is_strong_catalog_classification(product_classification):
+            foodclasses_bilstm_prediction = predict_foodclasses_from_product_text(
+                product_info.name,
+                product_info.brand,
             )
-            s_ok = (foodclasses_bilstm_prediction.subclass_confidence or 0.0) >= float(
-                settings.foodclasses_bilstm_min_subclass_confidence
-            )
-            if not c_ok or not s_ok:
-                warnings.append(
-                    "Foodclasses BiLSTM confidence below threshold; keeping POS taxonomy "
-                    f"(class={foodclasses_bilstm_prediction.class_confidence:.3f}, "
-                    f"subclass={foodclasses_bilstm_prediction.subclass_confidence:.3f})."
-                )
-        supermarket_classification = merge_foodclasses_with_pos(
-            supermarket_classification,
+        product_classification = merge_foodclasses_with_classification(
+            product_classification,
             foodclasses_bilstm_prediction,
-        )
-
-    nova_bilstm_prediction = None
-    if settings.nova_bilstm_enabled and product_info is not None:
-        nova_bilstm_prediction = predict_nova_from_product_text(
-            product_info.name,
-            product_info.brand,
-        )
-        supermarket_classification = maybe_fill_supermarket_nova(
-            supermarket_classification,
-            nova_bilstm_prediction,
-        )
-
-    threshold_row, thr_source, thr_score = resolve_knpm_thresholds_for_extraction(
-        product_info,
-        supermarket_classification,
-    )
-    if thr_source == "csv_default_composite":
-        warnings.append(
-            "KNPM nutrient limits used: category 6.0 (Composite foods) — no specific "
-            "food category matched from label/POS hints; thresholds may be stricter or looser "
-            "than the true KNPM category."
-        )
-    elif thr_source == "csv_pos_class_bridge":
-        warnings.append(
-            "KNPM category limits were chosen from retailer POS class → KNPM mapping "
-            "(fuzzy match to MoH category names was inconclusive). "
-            "Review `knpm_category_number` in the response."
         )
 
     knpm_label = classify_with_knpm(
         nutrition=nutrition_data,
         has_trans_fats=has_trans_fats if ingredients else False,
         has_sweeteners=has_sweeteners if ingredients else False,
-        threshold_row=threshold_row,
-        thresholds_source=thr_source,
-        category_match_score=thr_score,
     )
 
     # If we could not classify due to missing nutrition facts, surface that message as a warning.
     if knpm_label.message:
         warnings.append(knpm_label.message)
 
-    pos_sugar_mismatch = warning_pos_taxonomy_vs_label_sugar(
-        knpm_label, supermarket_classification
-    )
-    if pos_sugar_mismatch:
-        warnings.append(pos_sugar_mismatch)
-
-    model_raw: dict[str, Any] = {"output": text_response}
-    if reference_nutrition_match is not None:
-        model_raw["reference_nutrition_match"] = (
-            reference_nutrition_match.model_dump()
-        )
-    if nova_bilstm_prediction is not None:
-        model_raw["nova_bilstm_prediction"] = nova_bilstm_prediction.model_dump()
+    model_raw: dict[str, Any] = {"output": extracted_data.raw_response_text}
+    if product_nutrition_match is not None:
+        model_raw["product_nutrition_match"] = product_nutrition_match.model_dump()
     if foodclasses_bilstm_prediction is not None:
         model_raw["foodclasses_bilstm_prediction"] = (
             foodclasses_bilstm_prediction.model_dump()
@@ -558,15 +702,19 @@ async def extract_ingredients_from_image(
         ingredients=ingredients,
         nutrition_per_100g=nutrition_data,
         product_info=product_info,
+        visual_is_food=extracted_data.visual_is_food,
+        visual_is_packaged_retail_food=extracted_data.visual_is_packaged_retail_food,
+        visual_labels=extracted_data.visual_labels,
+        parse_error=extracted_data.parse_error,
         raw_text=raw_text_value,
         extraction_metadata=extraction_metadata,
         warnings=warnings,
         errors=errors,
         model_raw_output=model_raw,
         knpm_label=knpm_label,
-        supermarket_classification=supermarket_classification,
-        reference_nutrition_match=reference_nutrition_match,
-        nova_bilstm_prediction=nova_bilstm_prediction,
+        nutrition_source=nutrition_resolution.nutrition_source,
+        product_nutrition_match=product_nutrition_match,
+        product_classification=product_classification,
         foodclasses_bilstm_prediction=foodclasses_bilstm_prediction,
     )
     return await attach_healthier_recommendations(
@@ -575,6 +723,8 @@ async def extract_ingredients_from_image(
         has_sweeteners=has_sweeteners if ingredients else False,
         user_goal=user_goal,
     )
+
+
 
 
 
