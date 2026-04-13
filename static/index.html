@@ -622,12 +622,14 @@
           return;
         }
         knpmStatusEl.className = "knpm-status";
-        if (knpm.classification === "healthy") {
+        const cls = String(knpm.classification || "").toLowerCase();
+        const isLessHealthy = cls === "less healthy" || cls === "not healthy";
+        if (cls === "healthy") {
           knpmStatusEl.textContent = "Healthy (within assessed limits)";
           knpmStatusEl.classList.add("fit");
           knpmOctagonsEl.innerHTML = "";
-        } else if (knpm.classification === "not healthy") {
-          knpmStatusEl.textContent = "Not healthy (KNPM)";
+        } else if (isLessHealthy) {
+          knpmStatusEl.textContent = "Less healthy (KNPM)";
           knpmStatusEl.classList.add("less");
         } else {
           knpmStatusEl.textContent = knpm.message || "Unknown / unavailable";
@@ -635,7 +637,7 @@
         }
 
         knpmOctagonsEl.innerHTML = "";
-        if (knpm.classification !== "healthy" && Array.isArray(knpm.octagons)) {
+        if (cls !== "healthy" && Array.isArray(knpm.octagons)) {
           const srcMap = {
             high_in_sugar: "/octagon_images/high_in_sugar.svg",
             high_in_salt: "/octagon_images/high_in_salt.svg",

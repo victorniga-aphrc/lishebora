@@ -1,6 +1,6 @@
 # Lishebora backend API
 
-Backend service for the Lishebora nutrition labelling workstream: it accepts photos of **packaged food labels**, extracts structured data with an OpenAI vision model, applies Kenya Nutrient Profile Model (KNPM) style checks, resolves nutrition and taxonomy against a PostgreSQL reference catalog when needed, and can suggest healthier substitutes when a product is classified as not healthy.
+Backend service for the Lishebora nutrition labelling workstream: it accepts photos of **packaged food labels**, extracts structured data with an OpenAI vision model, applies Kenya Nutrient Profile Model (KNPM) style checks, resolves nutrition and taxonomy against a PostgreSQL reference catalog when needed, and can suggest healthier substitutes when a product is classified as less healthy.
 
 ## Table of contents
 
@@ -30,9 +30,9 @@ The service is intended for research and prototyping: label images go in, a stru
 | HTTP API | `GET /` demo page, `POST /extract` (multipart image), `POST /recommend/substitutes` (JSON body with a prior result), `GET /health`. Static KNPM octagon assets under `/octagon_images/`. |
 | Vision extraction | OpenAI vision (default `gpt-4.1-mini`) returns JSON; the app parses ingredients, pipeline nutrition fields, product fields, and visual cues. Requires `OPENAI_API_KEY`. |
 | Nutrition (API) | `nutrition_per_100g` exposes **`total_fat`**, **`trans_fat`**, **`total_sugar`**, **`sodium`** (g per 100 g or 100 ml). Values come from the label when usable; otherwise from the reference table when a row matches. |
-| KNPM | `knpm_label` with `classification` **`healthy`**, **`not healthy`**, or **`unknown`**, plus `octagons` (e.g. `high_in_sugar`, `high_in_salt`, `high_in_fat`), `reasons`, and optional `message`. Thresholds are set via environment variables. |
+| KNPM | `knpm_label` with `classification` **`healthy`**, **`less healthy`**, or **`unknown`**, plus `octagons` (e.g. `high_in_sugar`, `high_in_salt`, `high_in_fat`), `reasons`, and optional `message`. Thresholds are set via environment variables. |
 | Taxonomy | `product_classification` and mirrored top-level `class_name` / `subclass_name` from `catalog.reference_products`; optional **foodclasses BiLSTM** fills weak or missing catalog matches. |
-| Substitutes | When enabled and KNPM is `not healthy`, `healthier_substitutes` lists tiered alternatives from the same reference catalog (default up to **3** items), with optional template or OpenAI explanation text. |
+| Substitutes | When enabled and KNPM is `less healthy`, `healthier_substitutes` lists tiered alternatives from the same reference catalog (default up to **3** items), with optional template or OpenAI explanation text. |
 | Persistence | Alembic + `app.product_scan_summary` plus write-through to `catalog.reference_products` on each successful `/extract` when the database is configured (`save_ocr_result_to_db`). |
 
 ---
@@ -136,7 +136,7 @@ Example (illustrative):
     "visual_product_type": "boxed cereal"
   },
   "knpm_label": {
-    "classification": "not healthy",
+    "classification": "less healthy",
     "octagons": ["high_in_sugar"],
     "reasons": ["Total sugar … exceeds KNPM limit …"],
     "message": null
@@ -169,7 +169,7 @@ Returns `{"status": "ok"}` when the process is up.
 4. If the label does not yield usable numeric nutrition for the four pipeline nutrients, the service looks up the product name in **`catalog.reference_products`** (exact match, then fuzzy), and sets `nutrition_source` and `product_nutrition_match` when successful.
 5. Taxonomy is resolved from the same table; if the catalog match is weak or missing and the foodclasses model is enabled, the BiLSTM prediction is merged according to configured rules. NOVA strings are normalized using `models/nova_labels.json` when applicable.
 6. KNPM runs on resolved nutrition plus ingredient-keyword gates (trans fat wording, non-nutritive sweeteners).
-7. If substitutes are enabled and classification is `not healthy`, candidates are drawn from the reference catalog (zero KNPM octagons only), tiered by subclass then class then full catalog, up to the configured min/max count; explanation text may be template- or OpenAI-generated.
+7. If substitutes are enabled and classification is `less healthy`, candidates are drawn from the reference catalog (zero KNPM octagons only), tiered by subclass then class then full catalog, up to the configured min/max count; explanation text may be template- or OpenAI-generated.
 8. The result is returned; the route handler may persist to PostgreSQL without failing the HTTP response if save fails.
 
 ---
@@ -194,7 +194,7 @@ Settings are defined in **`app/config.py`** and loaded from the process environm
 | `FOODCLASSES_BILSTM_LABEL_ENCODERS_PKL` | `models/label_encoders.pkl` | Label encoders (match **scikit-learn** version in `requirements.txt`). |
 | `FOODCLASSES_BILSTM_REFERENCE_WEAK_MAX_SCORE` | `70` | Reference fuzzy name score **below** this ⇒ weak match (model may run). Exact name match is always strong. |
 | `NOVA_LABELS_JSON` | `models/nova_labels.json` | JSON map for normalized NOVA strings on the API. |
-| `SUBSTITUTE_RECOMMENDATIONS_ENABLED` | `true` | Build `healthier_substitutes` when KNPM classification is `not healthy`. |
+| `SUBSTITUTE_RECOMMENDATIONS_ENABLED` | `true` | Build `healthier_substitutes` when KNPM classification is `less healthy`. |
 | `SUBSTITUTE_MIN_RESULTS` | `3` | Minimum substitutes before widening tiers. |
 | `SUBSTITUTE_MAX_RESULTS` | `3` | Maximum substitutes returned. |
 | `SUBSTITUTE_EXPLANATION_ENABLED` | `true` | If `true` and `OPENAI_API_KEY` is set, substitute text may use OpenAI; otherwise a template is used. |

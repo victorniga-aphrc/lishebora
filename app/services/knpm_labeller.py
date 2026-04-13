@@ -5,6 +5,9 @@ from typing import List
 from app.config import settings
 from app.models import KnpmLabel, NutritionData
 
+# API / client-visible KNPM outcome when limits are exceeded or ingredient gates fire.
+KNPM_CLASSIFICATION_LESS_HEALTHY = "less healthy"
+
 
 def classify_with_knpm(
     nutrition: NutritionData | None,
@@ -36,10 +39,10 @@ def classify_with_knpm(
             "Non-nutritive/artificial sweeteners detected in the ingredients list."
         )
 
-    # Ingredient gates classify as not healthy even when numeric nutrition is missing.
+    # Ingredient gates classify as less healthy even when numeric nutrition is missing.
     if nutrition is None and octagons:
         return KnpmLabel(
-            classification="not healthy",
+            classification=KNPM_CLASSIFICATION_LESS_HEALTHY,
             octagons=octagons,
             reasons=reasons,
             message=None,
@@ -94,7 +97,7 @@ def classify_with_knpm(
     ):
         if octagons:
             return KnpmLabel(
-                classification="not healthy",
+                classification=KNPM_CLASSIFICATION_LESS_HEALTHY,
                 octagons=octagons,
                 reasons=reasons,
                 message=None,
@@ -119,7 +122,7 @@ def classify_with_knpm(
         )
 
     return KnpmLabel(
-        classification="not healthy",
+        classification=KNPM_CLASSIFICATION_LESS_HEALTHY,
         octagons=octagons,
         reasons=reasons,
         message=None,

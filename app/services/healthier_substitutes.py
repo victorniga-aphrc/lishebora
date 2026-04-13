@@ -33,7 +33,7 @@ from app.models import (
     OcrResult,
     SubstituteProduct,
 )
-from app.services.knpm_labeller import classify_with_knpm
+from app.services.knpm_labeller import KNPM_CLASSIFICATION_LESS_HEALTHY, classify_with_knpm
 from app.services.reference_catalog_db import iter_reference_products_with_nutrition_db
 from app.utils.pack_description import normalize_pack_description
 
@@ -98,7 +98,8 @@ def _exceeded_tags(knpm: KnpmLabel | None) -> list[str]:
 def _should_run(knpm: KnpmLabel | None) -> bool:
     if knpm is None:
         return False
-    return knpm.classification == "not healthy"
+    cls = str(knpm.classification or "").strip().lower()
+    return cls in (KNPM_CLASSIFICATION_LESS_HEALTHY, "not healthy")
 
 
 def _build_catalog_candidates() -> list[_Cand]:

@@ -382,7 +382,7 @@ class KnpmLabel(BaseModel):
 
     classification: str | None = Field(
         default=None,
-        description="Overall classification: healthy, not healthy, or unknown",
+        description="Overall classification: healthy, less healthy, or unknown",
     )
     octagons: List[str] = Field(
         default_factory=list,
