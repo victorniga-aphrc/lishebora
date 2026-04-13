@@ -18,6 +18,7 @@ from typing import Any
 from app.config import settings
 from app.models import FoodclassesBiLstmPrediction, ProductClassification
 from app.utils.nova_display import normalize_nova_for_api
+from app.utils.product_text import compose_product_query_text
 
 logger = logging.getLogger(__name__)
 
@@ -162,12 +163,7 @@ def predict_foodclasses_from_product_text(
     if not _ensure_loaded():
         return None
 
-    parts: list[str] = []
-    if brand and str(brand).strip():
-        parts.append(str(brand).strip())
-    if product_name and str(product_name).strip():
-        parts.append(str(product_name).strip())
-    line = " ".join(parts).strip()
+    line = compose_product_query_text(product_name, brand) or ""
     if not line:
         return None
 

@@ -14,6 +14,7 @@ from app.db import engine
 from app.models import NutritionData, ProductInfo, ProductClassification, ReferenceNutritionMatch
 from app.utils.nova_display import normalize_nova_for_api
 from app.utils.pack_description import normalize_pack_description
+from app.utils.product_text import compose_product_query_text
 
 
 def _reference_products_from_clause() -> str:
@@ -51,12 +52,15 @@ def find_exact_reference_row(
     Return the catalog row whose ``product_name`` matches ``product_info.name`` after
     the same normalization used for exact-name lookups (``normalize_pack_description``).
     """
-    if product_info is None or not (product_info.name or "").strip():
+    if product_info is None:
+        return None
+    target = compose_product_query_text(product_info.name, product_info.brand)
+    if not target:
         return None
     rows = _all_rows(db)
     if not rows:
         return None
-    target_norm = normalize_pack_description(product_info.name.strip())
+    target_norm = normalize_pack_description(target)
     return next(
         (
             r
@@ -89,14 +93,24 @@ def _all_rows(db: Session | None) -> list[dict[str, Any]]:
 def lookup_reference_nutrition_db(
     product_info: ProductInfo | None,
     db: Session | None,
-    min_score: float = 65.0,
+    min_score: float | None = None,
 ) -> tuple[NutritionData | None, ReferenceNutritionMatch | None]:
-    if product_info is None or not product_info.name:
+    """
+    ``min_score`` overrides ``settings.reference_catalog_fuzzy_min_score`` when set (e.g. tests).
+    """
+    threshold = (
+        float(settings.reference_catalog_fuzzy_min_score)
+        if min_score is None
+        else float(min_score)
+    )
+    if product_info is None:
+        return None, None
+    target = compose_product_query_text(product_info.name, product_info.brand)
+    if not target:
         return None, None
     rows = _all_rows(db)
     if not rows:
         return None, None
-    target = product_info.name.strip()
     target_norm = normalize_pack_description(target)
     exact = next(
         (
@@ -128,7 +142,7 @@ def lookup_reference_nutrition_db(
         if s > best_score:
             best = r
             best_score = s
-    if best is None or best_score < min_score:
+    if best is None or best_score < threshold:
         return None, None
     nut = _to_nutrition(best)
     if nut is None:
@@ -149,14 +163,24 @@ def lookup_reference_nutrition_db(
 def lookup_product_classification_db(
     product_info: ProductInfo | None,
     db: Session | None,
-    min_score: float = 65.0,
+    min_score: float | None = None,
 ) -> ProductClassification | None:
-    if product_info is None or not product_info.name:
+    """
+    ``min_score`` overrides ``settings.reference_catalog_fuzzy_min_score`` when set (e.g. tests).
+    """
+    threshold = (
+        float(settings.reference_catalog_fuzzy_min_score)
+        if min_score is None
+        else float(min_score)
+    )
+    if product_info is None:
+        return None
+    target = compose_product_query_text(product_info.name, product_info.brand)
+    if not target:
         return None
     rows = _all_rows(db)
     if not rows:
         return None
-    target = product_info.name.strip()
     target_norm = normalize_pack_description(target)
     exact = next(
         (
@@ -183,7 +207,7 @@ def lookup_product_classification_db(
         if s > best_score:
             best = r
             best_score = s
-    if best is None or best_score < min_score:
+    if best is None or best_score < threshold:
         return None
     nv = best.get("nova")
     return ProductClassification(

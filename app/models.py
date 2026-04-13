@@ -46,6 +46,13 @@ class ProductInfo(BaseModel):
         ),
     )
     barcode: str | None = Field(default=None, description="Product barcode (if visible)")
+    match_query_text: str | None = Field(
+        default=None,
+        description=(
+            "Derived text used for downstream matching/model steps: name, brand, or "
+            "'brand + name' depending on availability."
+        ),
+    )
 
 
 class ExtractedData(BaseModel):

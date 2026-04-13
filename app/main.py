@@ -20,6 +20,13 @@ _INDEX_HTML = _REPO_ROOT / "static" / "index.html"
 app = FastAPI(title="Lishebora VIC Backend")
 
 
+def _has_usable_nutrition(result: OcrResult) -> bool:
+    n = result.nutrition_per_100g
+    if n is None:
+        return False
+    return any(v is not None for v in (n.total_fat, n.total_sugar, n.sodium))
+
+
 # Serve black octagon SVGs under /octagon_images
 app.mount(
     "/octagon_images",
@@ -69,20 +76,30 @@ async def extract(
             user_goal=user_goal,
             db=db,
         )
-        
-        # Save to database
-        try:
-            save_ocr_result_to_db(
-                db=db,
-                ocr_result=result,
-                user_id=None,  # TODO: Add authentication
-                location=None,  # TODO: Extract from request if available
-                image_path=None,  # TODO: Save image to storage if needed
-            )
-        except Exception as db_exc:
-            # Log database error but don't fail the request
-            # The OCR extraction was successful, so we still return the result
-            print(f"Warning: Failed to save to database: {db_exc}")
+
+        # Save to database only when there is readable text and a name/brand anchor.
+        pi = result.product_info
+        has_readable_text = bool((result.raw_text or "").strip())
+        has_name_or_brand = bool(
+            pi and (bool((pi.name or "").strip()) or bool((pi.brand or "").strip()))
+        )
+        no_usable_nutrition_and_no_db_match = (
+            (not _has_usable_nutrition(result))
+            and (result.product_nutrition_match is None)
+        )
+        if has_readable_text and has_name_or_brand and not no_usable_nutrition_and_no_db_match:
+            try:
+                save_ocr_result_to_db(
+                    db=db,
+                    ocr_result=result,
+                    user_id=None,  # TODO: Add authentication
+                    location=None,  # TODO: Extract from request if available
+                    image_path=None,  # TODO: Save image to storage if needed
+                )
+            except Exception as db_exc:
+                # Log database error but don't fail the request
+                # The OCR extraction was successful, so we still return the result
+                print(f"Warning: Failed to save to database: {db_exc}")
         
         return result
     except OcrClientError as exc:

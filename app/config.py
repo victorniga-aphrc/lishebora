@@ -56,6 +56,12 @@ class Settings:
             table=self.reference_catalog_products_table,
         )
 
+    # Minimum SequenceMatcher score (0–100) for fuzzy name match vs catalog; exact normalized
+    # name match is always used first and ignores this threshold.
+    reference_catalog_fuzzy_min_score: float = float(
+        os.getenv("REFERENCE_CATALOG_FUZZY_MIN_SCORE", "90")
+    )
+
     # Active KNPM thresholds used in runtime classification (g per 100g/ml)
     knpm_fat_threshold: float = float(os.getenv("KNPM_FAT_THRESHOLD", "7.76"))
     knpm_sugar_threshold: float = float(os.getenv("KNPM_SUGAR_THRESHOLD", "4.7"))

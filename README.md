@@ -184,6 +184,7 @@ Settings are defined in **`app/config.py`** and loaded from the process environm
 |----------|---------|------|
 | `OPENAI_MODEL` | `gpt-4.1-mini` | Vision-capable chat model id. |
 | `DATABASE_URL` | `postgresql://postgres@localhost:5432/lishebora` | PostgreSQL for persistence and reference lookups. |
+| `REFERENCE_CATALOG_FUZZY_MIN_SCORE` | `90` | Minimum fuzzy name score (0–100) to accept a catalog row for nutrition and taxonomy when there is no exact normalized name match; lower only if recall is too strict. |
 | `KNPM_FAT_THRESHOLD` | `7.76` | Total fat limit (g per 100 g/ml) for “high in fat”. |
 | `KNPM_SUGAR_THRESHOLD` | `4.7` | Total sugar limit (g per 100 g/ml). |
 | `KNPM_SODIUM_THRESHOLD` | `0.26` | Sodium limit (g per 100 g/ml). |

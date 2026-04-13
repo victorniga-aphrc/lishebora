@@ -32,6 +32,7 @@ from app.services.reference_catalog_db import (
     lookup_reference_nutrition_db,
 )
 from app.services.recommendation_explainer import attach_healthier_recommendations
+from app.utils.product_text import compose_product_query_text
 
 
 class OcrClientError(Exception):
@@ -307,14 +308,11 @@ def parse_extracted_data(extracted_data: ExtractedData) -> ParsedData:
     """Convert grouped raw extraction output into structured parsed data."""
     parsed_json = extracted_data.parsed_json or {}
     product_info = _parse_product_info(parsed_json)
+    if product_info is not None:
+        product_info.match_query_text = compose_product_query_text(
+            product_info.name, product_info.brand
+        )
     visual_labels = extracted_data.visual_labels
-
-    # For text-light images, use a visual label as fallback name so downstream DB lookup has a query string.
-    # Unpackaged retail scenes should be stopped in _process_food_product_with_db before heavy steps.
-    if product_info is None and visual_labels:
-        product_info = ProductInfo(name=visual_labels[0], visual_product_type=visual_labels[0])
-    elif product_info is not None and not product_info.name and visual_labels:
-        product_info.name = visual_labels[0]
 
     return ParsedData(
         ingredients=_parse_ingredients_from_model_text(
@@ -612,12 +610,35 @@ async def _process_food_product_with_db(
             nutrition_source="unavailable",
         )
 
-    nutrition_resolution = resolve_nutrition_data(parsed_data, db)
+    has_readable_text = bool(raw_text_value and raw_text_value.strip())
+    has_name_or_brand = bool(
+        product_info
+        and (
+            bool((product_info.name or "").strip())
+            or bool((product_info.brand or "").strip())
+        )
+    )
+    skip_reference_lookup = (not has_readable_text) or (not has_name_or_brand)
+
+    if skip_reference_lookup:
+        nutrition_resolution = NutritionResolution(
+            nutrition_data=label_nutrition if is_usable_nutrition(label_nutrition) else None,
+            nutrition_source="image" if is_usable_nutrition(label_nutrition) else "unavailable",
+            product_nutrition_match=None,
+            lookup_error=None,
+        )
+    else:
+        nutrition_resolution = resolve_nutrition_data(parsed_data, db)
     nutrition_data = nutrition_resolution.nutrition_data
     product_nutrition_match = nutrition_resolution.product_nutrition_match
     nutrition_from_product_db = (
         nutrition_resolution.nutrition_source
         == settings.reference_catalog_source_label
+    )
+    no_usable_nutrition_and_no_db_match = (
+        not is_usable_nutrition(label_nutrition)
+        and not nutrition_from_product_db
+        and not is_usable_nutrition(nutrition_data)
     )
     
     # Generate warnings and errors
@@ -642,6 +663,20 @@ async def _process_food_product_with_db(
 
     if not extraction_metadata.product_name_found:
         warnings.append("Product name not found in image")
+    if skip_reference_lookup:
+        if not has_readable_text:
+            errors.append(
+                "No readable label text found. Reference lookup and model classification were skipped."
+            )
+        if not has_name_or_brand:
+            errors.append(
+                "Product name/brand not found. Reference lookup and model classification were skipped."
+            )
+    if no_usable_nutrition_and_no_db_match:
+        errors.append(
+            "No usable nutrients were found from the label and no reference nutrition match was found. "
+            "Model classification was skipped."
+        )
 
     # If both ingredients and usable nutrition are missing, add error
     if not extraction_metadata.ingredients_found and not is_usable_nutrition(
@@ -667,18 +702,20 @@ async def _process_food_product_with_db(
             warnings.append("Artificial sweeteners detected in ingredients list")
 
     # Taxonomy from the same reference table as nutrition; BiLSTM only when lookup is null or weak.
-    product_classification = lookup_product_classification_db(product_info, db)
+    product_classification = None
     foodclasses_bilstm_prediction = None
-    if settings.foodclasses_bilstm_enabled and product_info is not None:
-        if not is_strong_catalog_classification(product_classification):
-            foodclasses_bilstm_prediction = predict_foodclasses_from_product_text(
-                product_info.name,
-                product_info.brand,
+    if not skip_reference_lookup and not no_usable_nutrition_and_no_db_match:
+        product_classification = lookup_product_classification_db(product_info, db)
+        if settings.foodclasses_bilstm_enabled and product_info is not None:
+            if not is_strong_catalog_classification(product_classification):
+                foodclasses_bilstm_prediction = predict_foodclasses_from_product_text(
+                    product_info.name,
+                    product_info.brand,
+                )
+            product_classification = merge_foodclasses_with_classification(
+                product_classification,
+                foodclasses_bilstm_prediction,
             )
-        product_classification = merge_foodclasses_with_classification(
-            product_classification,
-            foodclasses_bilstm_prediction,
-        )
 
     knpm_label = classify_with_knpm(
         nutrition=nutrition_data,

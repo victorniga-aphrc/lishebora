@@ -504,6 +504,18 @@
         return Number.isFinite(n) ? n.toFixed(1) : String(v);
       }
 
+      /** product_classification: null score does not always mean exact (e.g. BiLSTM merge). */
+      function formatClassificationMatchScoreDisplay(sc) {
+        if (!sc) return "—";
+        const formatted = formatMatchScore1dp(sc.match_score);
+        if (formatted != null) return formatted;
+        const method = String(sc.match_method || "").toLowerCase();
+        if (method === "db_exact_name") return "— (exact normalized catalog name)";
+        if (method.startsWith("exact_")) return "— (exact)";
+        if (method.startsWith("bilstm_")) return "— (catalog fuzzy score n/a; labels from model)";
+        return "—";
+      }
+
       function showDl(dl, pairs, emptyEl) {
         dl.innerHTML = "";
         let any = false;
@@ -554,6 +566,7 @@
         showDl(dl, [
           ["name", pi.name],
           ["brand", pi.brand],
+          ["match_query_text_used", pi.match_query_text],
           ["barcode", pi.barcode],
           ["category", pi.category],
           ["visual_product_type", pi.visual_product_type],
@@ -678,7 +691,7 @@
           ["nova", sc.nova],
           ["matched_description", sc.matched_description],
           ["match_method", sc.match_method],
-          ["match_score", formatMatchScore1dp(sc.match_score) ?? "— (exact)"],
+          ["match_score", formatClassificationMatchScoreDisplay(sc)],
         ], empty);
       }
 
@@ -806,6 +819,9 @@
           if (k === "match_score") {
             const f = formatMatchScore1dp(v);
             if (f != null) v = f;
+            else if (String(pm.match_method || "").toLowerCase() === "db_exact_name") {
+              v = "— (exact normalized catalog name)";
+            }
           }
           return [k, v];
         }), empty);
