@@ -103,7 +103,8 @@ async def extract(
         
         return result
     except OcrClientError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        code = getattr(exc, "status_code", 502)
+        raise HTTPException(status_code=code, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail="Unexpected error during OCR.") from exc
 

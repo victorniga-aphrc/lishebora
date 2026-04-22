@@ -911,8 +911,14 @@
           const response = await fetch("/extract", { method: "POST", body: formData });
           const text = await response.text();
           if (!response.ok) {
+            let errBody = text;
+            try {
+              const j = JSON.parse(text);
+              if (j && typeof j.detail === "string") errBody = j.detail;
+              else if (j && j.detail != null) errBody = JSON.stringify(j.detail, null, 2);
+            } catch (_) { /* keep raw text */ }
             setStatus("Error " + response.status, "err");
-            rawJson.textContent = text;
+            rawJson.textContent = errBody;
             lastData = null;
             return;
           }

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-import json
+import ast
 import base64
+import json
+import logging
 from typing import Any, List
 
 import anyio
-from openai import OpenAI
+from openai import APIStatusError, OpenAI
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -34,9 +36,149 @@ from app.services.reference_catalog_db import (
 from app.services.recommendation_explainer import attach_healthier_recommendations
 from app.utils.product_text import compose_product_query_text
 
+logger = logging.getLogger(__name__)
+
 
 class OcrClientError(Exception):
     """Raised when the OCR client cannot process an image."""
+
+    def __init__(self, message: str, *, status_code: int = 502) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
+def _coerce_openai_error_payload(raw: Any) -> dict[str, Any] | None:
+    """Normalize ``exc.body`` / JSON text into a dict, if possible."""
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, (bytes, bytearray)):
+        try:
+            raw = raw.decode("utf-8")
+        except Exception:
+            return None
+    if isinstance(raw, str):
+        s = raw.strip()
+        if not s.startswith("{"):
+            return None
+        try:
+            out = json.loads(s)
+            return out if isinstance(out, dict) else None
+        except json.JSONDecodeError:
+            pass
+        try:
+            out = ast.literal_eval(s)
+            return out if isinstance(out, dict) else None
+        except (ValueError, SyntaxError, MemoryError):
+            return None
+    return None
+
+
+def _openai_error_fields(exc: APIStatusError) -> tuple[str | None, str | None, str]:
+    """
+    Best-effort parse of OpenAI ``error.code``, ``error.type``, and ``error.message``.
+
+    ``RateLimitError`` for billing/quota often still uses HTTP 429; fields may only appear
+    inside the exception string, not as a parsed ``body`` dict.
+    """
+    err_code: str | None = None
+    err_type: str | None = None
+    err_msg = str(getattr(exc, "message", "") or "").strip() or str(exc)
+
+    for blob in (exc.body,):
+        data = _coerce_openai_error_payload(blob)
+        if data is None:
+            continue
+        inner = data.get("error")
+        if isinstance(inner, dict):
+            if inner.get("code") is not None:
+                err_code = str(inner.get("code"))
+            if inner.get("type") is not None:
+                err_type = str(inner.get("type"))
+            if inner.get("message"):
+                err_msg = str(inner["message"])
+            break
+
+    resp = getattr(exc, "response", None)
+    if (err_code is None or err_type is None) and resp is not None:
+        try:
+            data = resp.json()
+        except Exception:
+            data = None
+        if isinstance(data, dict):
+            inner = data.get("error")
+            if isinstance(inner, dict):
+                if err_code is None and inner.get("code") is not None:
+                    err_code = str(inner.get("code"))
+                if err_type is None and inner.get("type") is not None:
+                    err_type = str(inner.get("type"))
+                if inner.get("message"):
+                    err_msg = str(inner["message"])
+
+    blob = str(exc)
+    if err_code is None and "insufficient_quota" in blob:
+        err_code = "insufficient_quota"
+    if err_type is None and "insufficient_quota" in blob:
+        err_type = "insufficient_quota"
+
+    return err_code, err_type, err_msg
+
+
+def _openai_api_failure(exc: Exception) -> OcrClientError:
+    """Map OpenAI SDK errors to a short client message, log details, and pick HTTP status."""
+    if isinstance(exc, APIStatusError):
+        err_code, err_type, err_msg = _openai_error_fields(exc)
+        is_quota = err_code == "insufficient_quota" or err_type == "insufficient_quota"
+
+        if is_quota:
+            detail = (
+                "OpenAI API: account quota exceeded (insufficient_quota). "
+                "Check billing and usage limits at https://platform.openai.com/account/billing"
+            )
+            logger.error(
+                "OpenAI vision call failed: insufficient_quota (HTTP %s, OpenAI type=%s). %s",
+                exc.status_code,
+                err_type,
+                err_msg,
+                exc_info=(type(exc), exc, exc.__traceback__),
+            )
+            return OcrClientError(detail, status_code=503)
+
+        if exc.status_code == 429:
+            detail = (
+                "OpenAI API: rate limit or usage cap reached (HTTP 429). "
+                f"Details: {err_msg}"
+            )
+            logger.error(
+                "OpenAI vision call failed: HTTP 429 (code=%s type=%s). %s",
+                err_code,
+                err_type,
+                err_msg,
+                exc_info=(type(exc), exc, exc.__traceback__),
+            )
+            return OcrClientError(detail, status_code=429)
+
+        detail = f"OpenAI API error (HTTP {exc.status_code}): {err_msg}"
+        logger.error(
+            "OpenAI vision call failed: HTTP %s code=%s type=%s message=%s",
+            exc.status_code,
+            err_code,
+            err_type,
+            err_msg,
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+        return OcrClientError(detail, status_code=502)
+
+    logger.error(
+        "OpenAI vision call failed with unexpected error: %s",
+        exc,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return OcrClientError(
+        f"Error calling OpenAI API ({type(exc).__name__}): {exc}",
+        status_code=502,
+    )
 
 
 def _clean_response_text(text: str) -> str:
@@ -374,12 +516,14 @@ async def process_food_image(
     - Returns grouped raw extraction output for later pipeline steps.
     """
     if not image_bytes:
-        raise OcrClientError("Empty image payload")
+        raise OcrClientError("Empty image payload", status_code=400)
 
     if not settings.openai_api_key:
+        logger.error("process_food_image: OPENAI_API_KEY is not set")
         raise OcrClientError(
             "OPENAI_API_KEY is not set in the environment. "
-            "Please add it to your .env file."
+            "Please add it to your .env file.",
+            status_code=503,
         )
 
     system_prompt = (
@@ -471,7 +615,7 @@ async def process_food_image(
     try:
         text_response = await _run_openai()
     except Exception as exc:  # pragma: no cover - defensive
-        raise OcrClientError(f"Error calling OpenAI API: {exc}") from exc
+        raise _openai_api_failure(exc) from exc
 
     # Clean and parse the response
     cleaned_response = _clean_response_text(text_response)
