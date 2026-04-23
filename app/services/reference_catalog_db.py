@@ -51,16 +51,20 @@ def find_exact_reference_row(
     """
     Return the catalog row whose ``product_name`` matches ``product_info.name`` after
     the same normalization used for exact-name lookups (``normalize_pack_description``).
+
+    Used by the catalog write path (``upsert_reference_product_from_ocr``). The key is
+    ``product_info.name`` alone so the lookup key matches the INSERT key — otherwise
+    repeat scans of the same product would insert duplicate rows.
     """
     if product_info is None:
         return None
-    target = compose_product_query_text(product_info.name, product_info.brand)
-    if not target:
+    name = (product_info.name or "").strip()
+    if not name:
         return None
     rows = _all_rows(db)
     if not rows:
         return None
-    target_norm = normalize_pack_description(target)
+    target_norm = normalize_pack_description(name)
     return next(
         (
             r

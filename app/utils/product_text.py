@@ -15,7 +15,9 @@ def compose_product_query_text(name: str | None, brand: str | None) -> str | Non
     - both missing -> None
     - one present -> that one
     - both present and same after normalize+casefold -> one value
-    - both present and different -> "BRAND NAME"
+    - both present and one contains the other (normalized) -> the longer one
+      (e.g. name "Orchid Valley Delight" + brand "Orchid Valley" -> name)
+    - both present and distinct -> "BRAND NAME"
     """
     n = _clean(name)
     b = _clean(brand)
@@ -28,6 +30,11 @@ def compose_product_query_text(name: str | None, brand: str | None) -> str | Non
 
     n_norm = normalize_pack_description(n).casefold()
     b_norm = normalize_pack_description(b).casefold()
-    if n_norm and b_norm and n_norm == b_norm:
-        return n
+    if n_norm and b_norm:
+        if n_norm == b_norm:
+            return n
+        if b_norm in n_norm:
+            return n
+        if n_norm in b_norm:
+            return b
     return f"{b} {n}".strip()
