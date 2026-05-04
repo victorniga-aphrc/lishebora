@@ -184,10 +184,23 @@ def predict_foodclasses_from_product_text(
         subclass_label, subclass_conf = _decode_head(subclass_probs, subclass_enc, "subclass")
         nova_label, nova_conf = _decode_head(nova_probs, nova_enc, "NOVA")
 
+        import numpy as np
+
+        nova_arr = np.asarray(nova_probs, dtype=float).reshape(-1)
+        nova_idx = int(np.argmax(nova_arr)) if nova_arr.size else 0
+        nova_softmax_size = int(nova_arr.size)
+        nova_canon = normalize_nova_for_api(
+            nova_label,
+            softmax_index=nova_idx,
+            softmax_size=nova_softmax_size,
+        )
+        if nova_canon is None:
+            nova_canon = nova_label
+
         return FoodclassesBiLstmPrediction(
             class_name=class_label,
             subclass_name=subclass_label,
-            nova_label=nova_label,
+            nova_label=nova_canon,
             class_confidence=class_conf,
             subclass_confidence=subclass_conf,
             nova_confidence=nova_conf,

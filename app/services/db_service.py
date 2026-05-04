@@ -23,9 +23,9 @@ def _resolve_nova(ocr: OcrResult) -> str | None:
     pc = ocr.product_classification
     if pc and pc.nova and str(pc.nova).strip():
         return normalize_nova_for_api(str(pc.nova).strip())
-    b = ocr.foodclasses_bilstm_prediction
-    if b and b.nova_label and str(b.nova_label).strip():
-        return normalize_nova_for_api(str(b.nova_label).strip())
+    cp = ocr.classifier_prediction
+    if cp and cp.nova and str(cp.nova).strip():
+        return normalize_nova_for_api(str(cp.nova).strip())
     return None
 
 
@@ -37,7 +37,7 @@ def save_ocr_result_to_db(
     image_path: Optional[str] = None,
 ) -> int:
     """
-    Insert one summary row for this extract and merge into ``catalog.reference_products``
+    Insert one summary row for this extract and merge into ``catalog.product_nutrition``
     (exact normalized name match; existing rows only get NULL columns filled). Catalog
     writes run in a **savepoint** so a logged catalog failure does not block the summary
     ``commit``.

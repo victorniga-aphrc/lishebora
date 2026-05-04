@@ -1,0 +1,607 @@
+Food Name,class_name,subclass_name,nova,needs_review,reviewer_note
+Acacia Kids Apple Pouch,FRUIT DRINKS/SWEETENED JUICES & BOTTLED TEAS,FRUIT DRINKS/SWEETENED JUICE,Ultra-processed foods,false,Acacia Kids apple juice pouch
+Acacia Kids Mango Pouch,FRUIT DRINKS/SWEETENED JUICES & BOTTLED TEAS,FRUIT DRINKS/SWEETENED JUICE,Ultra-processed foods,false,Acacia Kids mango juice pouch
+AL AMEERA TAHINA,JAM/OTHER SPREADS,TAHINI,Ultra-processed foods,false,tahini = sesame paste; moved from HERBS AND SPICES
+Amana Njahi Black Beans,"PULSES - PEAS, LENTILS, BEANS",BLACK BEANS (NJAHI),Unprocessed/Minimally processed foods,false,
+Amana Nyayo Beans,"PULSES - PEAS, LENTILS, BEANS",NYAYO BEANS,Unprocessed/Minimally processed foods,false,new subclass: NYAYO BEANS
+Amana Rosecoco Beans,"PULSES - PEAS, LENTILS, BEANS",ROSECOCO BEANS,Unprocessed/Minimally processed foods,false,new subclass: ROSECOCO BEANS
+Amana Yellow Beans,"PULSES - PEAS, LENTILS, BEANS",YELLOW BEANS,Unprocessed/Minimally processed foods,false,new subclass: YELLOW BEANS
+AMERICAN G CREA RANCH DRESSING,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+American Garden Italian Marinade And Salad Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+American Garden Mushroom Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+American Garden Spicy Brown Mustard,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+American Garden Worcestershire Sauce,TABLE SAUCES,BROWN/WORCESTERSHIRE SAUCE,Ultra-processed foods,false,new subclass: BROWN/WORCESTERSHIRE SAUCE
+American Garden yellow mustard Squeeze,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+American Gourmet Barbeque Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,
+American Gourmet Dijon Mustard,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+AMERICAN GOURMET ITALIAN DRESS,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+AMERICAN GOURMET PANCAKE SYRUP,TABLE SAUCES,SYRUP,Ultra-processed foods,false,new subclass: SYRUP
+AMERICAN GOURMET THOUSAN ISLAND,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Arpo Fish Sauce,COOKING SAUCES,FISH SAUCE,Ultra-processed foods,false,moved from TABLE SAUCES
+ASANTA YELLOW BEANS,"PULSES - PEAS, LENTILS, BEANS",YELLOW BEANS,Unprocessed/Minimally processed foods,false,new subclass: YELLOW BEANS
+Askeys Treat Strawberry,TABLE SAUCES,DESSERT TOPPING SAUCE,Ultra-processed foods,false,Askeys Treat = strawberry ice-cream topping syrup
+Atkins Potts Dill Mustard Sauce,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+Atkins Potts Ranch Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Atkins Potts Red Onion Jalapeno Relish,TABLE SAUCES,RELISH,Ultra-processed foods,false,new subclass: RELISH
+Atkins Potts Salsa Dip,TABLE SAUCES,SALSA/GUACAMOLE,Ultra-processed foods,false,new subclass: SALSA/GUACAMOLE
+Atkins Potts Sea Food Sauce Lemon Dill,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,Atkins & Potts seafood condiment sauce; moved from COOKING SAUCES
+Atkins Potts Tartare Sauce,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,new subclass: OTHER CONDIMENT SAUCE
+Atkins Potts Wasabi Lime Dresing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Ayam Thai Yellow Curry Sauce,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Bakalland BA Cocoa And Milk Kid Cereal Bar,BREAKFAST CEREALS,CEREAL BAR,Ultra-processed foods,false,kids cereal bar
+Barilla Chilli Pepper Arrabbiata Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Beecare Naturals Cashew Nut Butter Roasted Salted,JAM/OTHER SPREADS,NUT BUTTER,Ultra-processed foods,false,cashew nut butter
+Bertolli Five Cheese Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Bertolli Fresh Garlic Herbs,HERBS AND SPICES,SPICES - GARLIC,Unprocessed/Minimally processed foods,false,keyword rule -> SPICES - GARLIC
+Bertolli Garlic Marinara,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Bertolli Olive Oil Garlic Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Bertolli Organic Tomatobasil,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Bertolli Rustic Cut Marinara,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Bertolli Rustic Cut Sweet Pepper With Mushroom,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Bertolli Tomato Basil Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Betty Crocker Butter Milk Pancake Mix,BREAKFAST CEREALS,PANCAKE/WAFFLE MIX,Ultra-processed foods,false,new subclass: PANCAKE/WAFFLE MIX
+Blue Riband,"COOKIES, BISCUITS AND WAFERS",WAFERS,Ultra-processed foods,false,Blue Riband = Nestle wafer biscuit
+Bob s Red Mill 7 Grain Hot Cereal,BREAKFAST CEREALS,OATMEAL/PORRIDGE,Unprocessed/Minimally processed foods,false,Bob's Red Mill 7-grain hot cereal
+Bokomo Muesli African Baked Granola,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Bokomo Nature s Source Muesli Crispy Crunch Crocante Baked Granola,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Bokomo Nature s Source Muesli Tropical Cluster Granola,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Bolci Christmas Selection,CHOCOLATE,CHOCOLATE,Ultra-processed foods,false,Bolci Christmas chocolate assortment; moved from CANDY AND CONFECTIONERY
+Brad S Cannellini Beans,"PULSES - PEAS, LENTILS, BEANS",CANNELLINI BEANS,Unprocessed/Minimally processed foods,false,new subclass: CANNELLINI BEANS
+Brad S Cannellini Beans No Salt,"PULSES - PEAS, LENTILS, BEANS",CANNELLINI BEANS,Unprocessed/Minimally processed foods,false,new subclass: CANNELLINI BEANS
+Brad S Chili Beans,"PULSES - PEAS, LENTILS, BEANS",CANNED BEANS (READY),Processed foods,false,new subclass: CANNED BEANS (READY)
+Brad S Garbanzo Beans No Salt,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Processed foods,false,garbanzo = chickpea (canned)
+Brad S Kidney Beans,"PULSES - PEAS, LENTILS, BEANS",KIDNEY BEANS,Unprocessed/Minimally processed foods,false,new subclass: KIDNEY BEANS
+Brad S Pinto Beans,"PULSES - PEAS, LENTILS, BEANS",PINTO BEANS,Unprocessed/Minimally processed foods,false,new subclass: PINTO BEANS
+Brad S Pinto Beans No Salt,"PULSES - PEAS, LENTILS, BEANS",PINTO BEANS,Unprocessed/Minimally processed foods,false,new subclass: PINTO BEANS
+Brad S Salad Beans,"PULSES - PEAS, LENTILS, BEANS",CANNED BEANS (READY),Processed foods,false,new subclass: CANNED BEANS (READY)
+Butterfly Black Gram Split,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,split urad dal
+Butterfly Black Gram Urad Dal,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,urad dal
+Butterfly Cow Peas Red Chora,"PULSES - PEAS, LENTILS, BEANS",COWPEAS/CHORA,Unprocessed/Minimally processed foods,false,new subclass: COWPEAS/CHORA
+Butterfly Gram Flour,"PULSES - PEAS, LENTILS, BEANS",GRAM FLOUR (BESAN),Unprocessed/Minimally processed foods,false,new subclass: GRAM FLOUR (BESAN)
+BUTTERFLY NYOTA BEANS,"PULSES - PEAS, LENTILS, BEANS",KENYAN HERITAGE BEANS,Unprocessed/Minimally processed foods,false,new subclass: KENYAN HERITAGE BEANS
+Butterfly Pigeon Peas Washed Toor Dal,"PULSES - PEAS, LENTILS, BEANS",PIGEON PEAS,Unprocessed/Minimally processed foods,false,new subclass: PIGEON PEAS
+Butterfly Pulses Brown Rosecoco Beans,"PULSES - PEAS, LENTILS, BEANS",ROSECOCO BEANS,Unprocessed/Minimally processed foods,false,new subclass: ROSECOCO BEANS
+Butterfly Pulses Chick Peas,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,chickpeas
+Butterfly Pulses Dried Green Peas,"PULSES - PEAS, LENTILS, BEANS",GREEN PEAS (DRIED),Unprocessed/Minimally processed foods,false,new subclass: GREEN PEAS (DRIED)
+Butterfly Pulses Kenyan Kidney Beans,"PULSES - PEAS, LENTILS, BEANS",KIDNEY BEANS,Unprocessed/Minimally processed foods,false,new subclass: KIDNEY BEANS
+Butterfly Pulses Kenyan Kidney Nyayo Beans,"PULSES - PEAS, LENTILS, BEANS",KIDNEY BEANS,Unprocessed/Minimally processed foods,false,new subclass: KIDNEY BEANS
+Butterfly Pulses Lima Butter Beans,"PULSES - PEAS, LENTILS, BEANS",BUTTER/LIMA BEANS,Unprocessed/Minimally processed foods,false,new subclass: BUTTER/LIMA BEANS
+Butterfly Pulses Njahi Black Beans,"PULSES - PEAS, LENTILS, BEANS",BLACK BEANS (NJAHI),Unprocessed/Minimally processed foods,false,
+Butterfly Pulses Pinto Beans,"PULSES - PEAS, LENTILS, BEANS",PINTO BEANS,Unprocessed/Minimally processed foods,false,new subclass: PINTO BEANS
+Butterfly Pulses Red Haricot Beans,"PULSES - PEAS, LENTILS, BEANS",HARICOT BEANS,Unprocessed/Minimally processed foods,false,new subclass: HARICOT BEANS
+Butterfly Pulses Red Kidney Beans,"PULSES - PEAS, LENTILS, BEANS",KIDNEY BEANS,Unprocessed/Minimally processed foods,false,new subclass: KIDNEY BEANS
+Butterfly Pulses White Cow Peas (Chora Black Eyed Beans),"PULSES - PEAS, LENTILS, BEANS",COWPEAS/CHORA,Unprocessed/Minimally processed foods,false,new subclass: COWPEAS/CHORA
+Butterfly Pulses Yellow Kidney Beans,"PULSES - PEAS, LENTILS, BEANS",KIDNEY BEANS,Unprocessed/Minimally processed foods,false,new subclass: KIDNEY BEANS
+CADBURY DAIRY MILK CARAM CHOC,CHOCOLATE,CHOCOLATE BAR,Ultra-processed foods,false,Cadbury Dairy Milk Caramel chocolate bar
+Carrefour Arabiata Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Carrefour Barbecue Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+Carrefour Basil Tomato Cooking Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,
+Carrefour Bio Peru,COFFEE,COFFEE - UNSWEETENED WITHOUT MILK,Unprocessed/Minimally processed foods,true,web: most likely Carrefour Bio organic Peruvian coffee; verify SKU (could be quinoa or chocolate)
+Carrefour Exotique Salsa Sauce,COOKING SAUCES,STIR FRY/ASIAN SAUCE,Ultra-processed foods,false,new subclass: STIR FRY/ASIAN SAUCE
+Carrefour Mushroom Forest Tomato Cooking Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,
+Carrefour Natural Light Vinaigrette Salad Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Carrefour Nyayo Beans,"PULSES - PEAS, LENTILS, BEANS",NYAYO BEANS,Unprocessed/Minimally processed foods,false,new subclass: NYAYO BEANS
+Carrefour Redcurrant Jelly,JAM/OTHER SPREADS,JELLY (NON-FRUIT),Ultra-processed foods,false,new subclass: JELLY (NON-FRUIT)
+Carrefour Selection BBQ Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+Carrefour Tomato Olive Cooking Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,
+Ceres Season S Treasure,FRESH/FRUIT JUICES - NO ADDED SUGAR,FRESH/FRUIT JUICES - NO ADDED SUGAR,Unprocessed/Minimally processed foods,false,Ceres pure fruit juice no added sugar
+CHAIN KWO HOISIN SAUCE,COOKING SAUCES,HOISIN SAUCE,Ultra-processed foods,false,new subclass: HOISIN SAUCE
+Chain Kwo Oyster Sauce,COOKING SAUCES,OYSTER SAUCE,Ultra-processed foods,false,new subclass: OYSTER SAUCE
+Chain Kwo Sweet And Sour Sauce,COOKING SAUCES,STIR FRY/ASIAN SAUCE,Ultra-processed foods,false,new subclass: STIR FRY/ASIAN SAUCE
+Chamdor Sparkling Red Grape Wine,SODAS AND CARBONATED DRINKS,SODAS,Ultra-processed foods,false,web: Chamdor = NON-alcoholic sparkling grape juice (South Africa)
+Chandan Cocktail Thunder,CANDY AND CONFECTIONERY,MUKHWAS/MOUTH FRESHENER,Ultra-processed foods,false,Chandan premium digestive mukhwas; moved from ENERGY DRINKS
+Chandan Fresh Mint,HERBS AND SPICES,HERBS - MINT,Unprocessed/Minimally processed foods,false,new subclass: HERBS - MINT
+Chandan Fresh Mint Rose,HERBS AND SPICES,HERBS - MINT,Unprocessed/Minimally processed foods,false,new subclass: HERBS - MINT
+Chandan Jamunvati,CANDY AND CONFECTIONERY,MUKHWAS/MOUTH FRESHENER,Ultra-processed foods,false,Chandan jamun-based mukhwas/digestive
+Chandan Kachi Kairi,CANDY AND CONFECTIONERY,MUKHWAS/MOUTH FRESHENER,Ultra-processed foods,false,kachi kairi = raw-mango mukhwas; moved from HERBS AND SPICES
+Chandan Kachi Kairi Pouch,CANDY AND CONFECTIONERY,MUKHWAS/MOUTH FRESHENER,Ultra-processed foods,false,kachi kairi pouch = raw-mango mukhwas; moved from HERBS AND SPICES
+Chandan Mix,CANDY AND CONFECTIONERY,MUKHWAS/MOUTH FRESHENER,Ultra-processed foods,false,web: Chandan = Indian mukhwas/mouth-freshener brand
+Chandan Pan Delight,CANDY AND CONFECTIONERY,MUKHWAS/MOUTH FRESHENER,Ultra-processed foods,false,Chandan paan-based mukhwas
+Chandan Pan Delight Pouch,CANDY AND CONFECTIONERY,MUKHWAS/MOUTH FRESHENER,Ultra-processed foods,false,Chandan paan-based mukhwas
+Chandan Peruvati,CANDY AND CONFECTIONERY,MUKHWAS/MOUTH FRESHENER,Ultra-processed foods,false,web: Chandan = Indian mukhwas/mouth-freshener brand
+Chef King Oyster Sauce,COOKING SAUCES,OYSTER SAUCE,Ultra-processed foods,false,new subclass: OYSTER SAUCE
+Chicken Tonight Spanish Chicken Sauce,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+CHIKA CHIKA GARLIKY TWIST,SWEET AND SAVOURY SNACKS,BHUSU MIX,Ultra-processed foods,false,Chika Chika garlic-flavoured savoury snack
+CHIKA CHIKA MANGO CHILLY,SWEET AND SAVOURY SNACKS,BHUSU MIX,Ultra-processed foods,false,Chika Chika Indian-style spicy snack
+Chika Chika Mango Chilly Sauce,TABLE SAUCES,CHILLI/HOT SAUCE,Ultra-processed foods,false,chilly = chilli typo
+CHIKA CHIKA SWEET CHILLI,SWEET AND SAVOURY SNACKS,BHUSU MIX,Ultra-processed foods,false,Chika Chika Indian-style spicy snack
+Cirio Napoletana Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+CIRIO PASTA SAUCE ARRABBIATA,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+CIRIO PESTO SAUCE PREMIUM,COOKING SAUCES,PESTO,Ultra-processed foods,false,new subclass: PESTO
+Cirio Pizza Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,
+Clovers Gravy Browning,COOKING SAUCES,GRAVY,Ultra-processed foods,false,new subclass: GRAVY
+Clovers Hot Sweet Sauce,TABLE SAUCES,CHILLI/HOT SAUCE,Ultra-processed foods,false,
+Coffee Mate Sugar Free Choco,MILK POWDER,NON-DAIRY COFFEE CREAMER,Ultra-processed foods,false,Coffee Mate chocolate creamer; moved from COCOA
+Coffee Mate Sugarfree Hnut,MILK POWDER,NON-DAIRY COFFEE CREAMER,Ultra-processed foods,false,Coffee Mate hazelnut creamer; moved from COFFEE
+Coffeemate Creamy Chocolate,MILK POWDER,NON-DAIRY COFFEE CREAMER,Ultra-processed foods,false,Coffee Mate creamy chocolate creamer; moved from COFFEE
+Colmans Mustard Powder Dsf,HERBS AND SPICES,SPICES - MUSTARD,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MUSTARD
+DAAWAT BLACK BEANS NJAHI,"PULSES - PEAS, LENTILS, BEANS",BLACK BEANS (NJAHI),Unprocessed/Minimally processed foods,false,
+Daawat Yellow Beans,"PULSES - PEAS, LENTILS, BEANS",YELLOW BEANS,Unprocessed/Minimally processed foods,false,new subclass: YELLOW BEANS
+Dairyland Chocolate Dessert Topping Sauce,TABLE SAUCES,DESSERT TOPPING SAUCE,Ultra-processed foods,false,new subclass: DESSERT TOPPING SAUCE
+De Cecco Alla Arrabbiata Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+De Cecco Alla Genovese Pesto,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+De Cecco Alla Siciliana Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+DE NIGRIS S BALSAMC GLAZE FIGFL,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Desiam Chilli Pineapple Thai Dipping Sauce,TABLE SAUCES,DIPPING SAUCE,Ultra-processed foods,false,new subclass: DIPPING SAUCE
+Desiam Thai Green Curry Paste,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Desiam Thai Seasoning Oyster Sauce,COOKING SAUCES,OYSTER SAUCE,Ultra-processed foods,false,new subclass: OYSTER SAUCE
+Desiam Yellow Thai Curry Paste,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+DORMANS INSTANT FINE,COFFEE,COFFEE - UNSWEETENED WITHOUT MILK,Ultra-processed foods,false,"Dormans instant coffee, fine grind"
+DORMANS MOJITO SYRUP,TABLE SAUCES,SYRUP,Ultra-processed foods,false,Dormans flavoured drink syrup; moved from COFFEE
+Duerr s Mint Sauce,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,new subclass: OTHER CONDIMENT SAUCE
+El Sabor Hot Salsa Dip,TABLE SAUCES,SALSA/GUACAMOLE,Ultra-processed foods,false,new subclass: SALSA/GUACAMOLE
+Eva Black Seeds,HERBS AND SPICES,SPICES - KALONJI/BLACK SEEDS,Unprocessed/Minimally processed foods,false,new subclass: SPICES - KALONJI/BLACK SEEDS
+Eva Fenugreek Spice,HERBS AND SPICES,SPICES - FENUGREEK,Unprocessed/Minimally processed foods,false,new subclass: SPICES - FENUGREEK
+Eva Hibiscus Whole Spice,HERBS AND SPICES,SPICES - HIBISCUS,Unprocessed/Minimally processed foods,false,new subclass: SPICES - HIBISCUS
+Eva Kamande,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,kamande = Swahili for lentils
+Eva Moringa Spice,HERBS AND SPICES,SPICES - MORINGA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MORINGA
+Eva Njahi Beans,"PULSES - PEAS, LENTILS, BEANS",BLACK BEANS (NJAHI),Unprocessed/Minimally processed foods,false,
+Eva Premium Saffron,HERBS AND SPICES,SPICES - SAFFRON,Unprocessed/Minimally processed foods,false,
+Eva Premium Zaatar,HERBS AND SPICES,SPICES - ZAATAR,Unprocessed/Minimally processed foods,false,new subclass: SPICES - ZAATAR
+Eva Soya Beans,"PULSES - PEAS, LENTILS, BEANS",SOYA BEANS,Unprocessed/Minimally processed foods,false,new subclass: SOYA BEANS
+Eva Whole Oregano Spice,HERBS AND SPICES,HERBS - OREGANO,Unprocessed/Minimally processed foods,false,new subclass: HERBS - OREGANO
+Eva Yellow Beans,"PULSES - PEAS, LENTILS, BEANS",YELLOW BEANS,Unprocessed/Minimally processed foods,false,new subclass: YELLOW BEANS
+FENG QUI MAI FISH SAUCE,COOKING SAUCES,FISH SAUCE,Ultra-processed foods,false,moved from TABLE SAUCES
+FESTIVA CAESAR DRESSING,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+FESTIVA FRENCH DRESSING,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,
+Festiva Italian Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,
+Festiva Pasta Sauce Italian,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Festiva Yellow Mustard,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+Fit Cereal Honey Balls,BREAKFAST CEREALS,FILLED CEREAL/POPS,Ultra-processed foods,false,
+Galitos Garlic Piri Piri Sauce,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,new subclass: OTHER CONDIMENT SAUCE
+Galitos Hot Piri Piri Sauce,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,new subclass: OTHER CONDIMENT SAUCE
+Galitos Lemon And Herb Piri Piri Sauce,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,new subclass: OTHER CONDIMENT SAUCE
+Galitos Premium Reserve Piri Piri Sauce,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,new subclass: OTHER CONDIMENT SAUCE
+Godson Organics Sesame Seeds,HERBS AND SPICES,SPICES - SESAME SEEDS,Unprocessed/Minimally processed foods,false,new subclass: SPICES - SESAME SEEDS
+Gran Luchito Chipotle Salsa,TABLE SAUCES,SALSA/GUACAMOLE,Ultra-processed foods,false,new subclass: SALSA/GUACAMOLE
+Gran Luchito Mango Habaner Salsa,TABLE SAUCES,SALSA/GUACAMOLE,Ultra-processed foods,false,new subclass: SALSA/GUACAMOLE
+Gran Luchito Tomatillo Salsa,COOKING SAUCES,STIR FRY/ASIAN SAUCE,Ultra-processed foods,false,new subclass: STIR FRY/ASIAN SAUCE
+Green Forest Unpeeled Peanuts,"PULSES - PEAS, LENTILS, BEANS",RAW PEANUTS,Unprocessed/Minimally processed foods,false,new subclass: RAW PEANUTS
+GREENLIFE SANDWICH SEA SEDGE,VEGETABLES,SEAWEED,Unprocessed/Minimally processed foods,false,dried seaweed/nori
+GURU SPECIAL BASMATI RICE,CEREAL GRAINS,WHITE RICE,Unprocessed/Minimally processed foods,false,basmati = white rice
+Hamlet Excellent Line Gold,CHOCOLATE,CHOCOLATE,Ultra-processed foods,false,Hamlet Excellent Line praline assortment; moved from CANDY AND CONFECTIONERY
+HARIBO CHAMALLOWS,CANDY AND CONFECTIONERY,MARSHMALLOWS,Ultra-processed foods,false,Haribo Chamallows = marshmallows; moved from COOKING FAT
+Healthy Kajuju Tropical Fruit Granola,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Heinz 1000 Island Sauce,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Heinz Baked Beans In Tomato Sauce,"PULSES - PEAS, LENTILS, BEANS",CANNED BEANS (READY),Processed foods,false,new subclass: CANNED BEANS (READY)
+Heinz Mustard Sauce,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+Heinz Original Salad Cream,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,
+HELIOS FRUITS OF THE FOREST E P,JAM/OTHER SPREADS,FRUIT JAM,Ultra-processed foods,false,Helios fruits-of-the-forest preserve
+HELIOS RASPBERRY E FRUIT PRESER,JAM/OTHER SPREADS,FRUIT JAM,Ultra-processed foods,false,Helios raspberry preserve
+HELIOS SUGARED STRAWBERRY PRESE,JAM/OTHER SPREADS,FRUIT JAM,Ultra-processed foods,false,Helios sugared strawberry preserve
+Highlands Drinking Water Juice,FRUIT DRINKS/SWEETENED JUICES & BOTTLED TEAS,FRUIT DRINKS/SWEETENED JUICE,Ultra-processed foods,false,Highlands flavoured water juice drink
+HP Original Sauce,TABLE SAUCES,BROWN/WORCESTERSHIRE SAUCE,Ultra-processed foods,false,new subclass: BROWN/WORCESTERSHIRE SAUCE
+Jade Bridge Fish Sauce,COOKING SAUCES,FISH SAUCE,Ultra-processed foods,false,moved from TABLE SAUCES
+JADE BRIDGE HOI SIN SAUCE,COOKING SAUCES,HOISIN SAUCE,Ultra-processed foods,false,new subclass: HOISIN SAUCE
+Java House Crispy Crunchy Granola Cereal,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Java House Tropical Crunch Granola Cereal,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Joe Seph S Capucino Carmel Sauce,TABLE SAUCES,DESSERT TOPPING SAUCE,Ultra-processed foods,false,new subclass: DESSERT TOPPING SAUCE
+Joe Seph S Chocolate Caramel Sauce,TABLE SAUCES,DESSERT TOPPING SAUCE,Ultra-processed foods,false,new subclass: DESSERT TOPPING SAUCE
+Joe Seph S Pie Caramel Sauce,TABLE SAUCES,DESSERT TOPPING SAUCE,Ultra-processed foods,false,new subclass: DESSERT TOPPING SAUCE
+Joe Seph S Sticky Toffee Sauce,TABLE SAUCES,DESSERT TOPPING SAUCE,Ultra-processed foods,false,new subclass: DESSERT TOPPING SAUCE
+Joe Seph s Toffee Aple Cinnamon Sauce,TABLE SAUCES,DESSERT TOPPING SAUCE,Ultra-processed foods,false,new subclass: DESSERT TOPPING SAUCE
+Joe Seph Salted Carmel Cheese Cake Sauce,TABLE SAUCES,DESSERT TOPPING SAUCE,Ultra-processed foods,false,new subclass: DESSERT TOPPING SAUCE
+Joe Seph Speculoos Carmel Sauce,TABLE SAUCES,DESSERT TOPPING SAUCE,Ultra-processed foods,false,new subclass: DESSERT TOPPING SAUCE
+Jordans County Crisp Honey Nut,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,Jordans County Crisp = granola
+Jordans County Crisp Superberry,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,Jordans County Crisp = granola
+Jordans County Oat Porridge,BREAKFAST CEREALS,OATMEAL/PORRIDGE,Ultra-processed foods,false,new subclass: OATMEAL/PORRIDGE
+Jordans Frusli Cranberry Apple Cereal,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,Jordans Frusli = fruit granola
+Jordans Frusli Raisin Hazelnut Cereal,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,Jordans Frusli = fruit granola
+Jordans Nutural Muesli Fruit Nut,BREAKFAST CEREALS,MUESLI,Ultra-processed foods,false,new subclass: MUESLI
+Jordans Organic Oat Porridge,BREAKFAST CEREALS,OATMEAL/PORRIDGE,Ultra-processed foods,false,new subclass: OATMEAL/PORRIDGE
+Jordans Super Berry Granola,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Jordans Super Fruity Granola,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Jordans Super Nutty Granola,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Kaputei 1000 Islands Salad Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Kaputei Barbecue Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+Kaputei Barbeque Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,
+Kaputei Basil Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Basil Pesto Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+KAPUTEI BBQ HICKORY SMOKE FLAVO,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+Kaputei Chipotle Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,chipotle-flavoured dressing
+Kaputei Coriander Pesto,COOKING SAUCES,PESTO,Ultra-processed foods,false,new subclass: PESTO
+Kaputei Dressing Cool Ranch Sauce,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Kaputei Dressing Honey Mustard Sauce,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+Kaputei Dressing Teriyaki Sauce,COOKING SAUCES,TERIYAKI/MIRIN,Ultra-processed foods,false,new subclass: TERIYAKI/MIRIN
+Kaputei Garlic Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Herb Vinaigrette Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,
+Kaputei Honey Barbecue Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+Kaputei Honey Barbeque Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,
+Kaputei Hot Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Hot Pizza Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,
+Kaputei Lasagna Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Mayo Ketchup Dressing,TABLE SAUCES,MAYONNAISE,Ultra-processed foods,false,keyword rule -> MAYONNAISE
+Kaputei Mushroom Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Mustard Sauce,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+Kaputei Pasta Cheese Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Pasta Sauce Basil,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Pasta Sauce Garlic,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Pasta Sauce Regular,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Pizza Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,
+Kaputei Pizza Sauce Regular,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,pizza sauce -> pasta sauce subclass
+Kaputei Roasted Pepper Pesto,COOKING SAUCES,PESTO,Ultra-processed foods,false,new subclass: PESTO
+Kaputei Rocket Pesto,COOKING SAUCES,PESTO,Ultra-processed foods,false,new subclass: PESTO
+Kaputei Smokey Barbecue Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+Kaputei Spaghetti Bolognaise Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Spaghetti Bolognese Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Spaghetti Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Kaputei Sweet And Sticky Barbecue Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+Kaputei Sweet And Sticky Barbeque Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,
+Kellogg S Frosties,BREAKFAST CEREALS,FILLED CEREAL/POPS,Ultra-processed foods,false,new subclass: FILLED CEREAL/POPS
+Kent Boringer White Chocolate Topping Sauce,TABLE SAUCES,DESSERT TOPPING SAUCE,Ultra-processed foods,false,new subclass: DESSERT TOPPING SAUCE
+Kenylon Beans In Tomato sauce,"PULSES - PEAS, LENTILS, BEANS",CANNED BEANS (READY),Processed foods,false,new subclass: CANNED BEANS (READY)
+Kenylon Chick Peas,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,chickpeas (no chickpea subclass; closest = LENTILS)
+Kings Daily Brand Grade 1 Rose Coco Bean,"PULSES - PEAS, LENTILS, BEANS",ROSECOCO BEANS,Unprocessed/Minimally processed foods,false,new subclass: ROSECOCO BEANS
+Kings Daily Brand Njahi Beans,"PULSES - PEAS, LENTILS, BEANS",BLACK BEANS (NJAHI),Unprocessed/Minimally processed foods,false,
+Kings Daily Brand Nyayo Beans,"PULSES - PEAS, LENTILS, BEANS",NYAYO BEANS,Unprocessed/Minimally processed foods,false,new subclass: NYAYO BEANS
+Knorr Aromat Naturally Tasty Seasoning,HERBS AND SPICES,SPICES - ALL PURPOSE SEASONING,Unprocessed/Minimally processed foods,false,new subclass: SPICES - ALL PURPOSE SEASONING
+Kol Hot Sweet Sauce,TABLE SAUCES,CHILLI/HOT SAUCE,Ultra-processed foods,false,
+KPL Super Fine Gram Flour,"PULSES - PEAS, LENTILS, BEANS",GRAM FLOUR (BESAN),Unprocessed/Minimally processed foods,false,new subclass: GRAM FLOUR (BESAN)
+Laoganma Chicken Chilli Oil With Tofu Pickle,COOKING SAUCES,CHILLI OIL,Ultra-processed foods,false,new subclass: CHILLI OIL
+Lea Perrins Worcestershire Sauce,TABLE SAUCES,BROWN/WORCESTERSHIRE SAUCE,Ultra-processed foods,false,new subclass: BROWN/WORCESTERSHIRE SAUCE
+Live Life Well Organic Porridge Oats,BREAKFAST CEREALS,OATMEAL/PORRIDGE,Ultra-processed foods,false,new subclass: OATMEAL/PORRIDGE
+Lizi Organic Nuts Seeds Granola,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Lizi Original Granola Nuts And Seed,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Lotus Biscoff Spread Cookie Butter,JAM/OTHER SPREADS,COOKIE BUTTER SPREAD,Ultra-processed foods,false,new subclass: COOKIE BUTTER SPREAD
+LOTUS BISCOFF SPREAD CRUNCHY,JAM/OTHER SPREADS,COOKIE BUTTER SPREAD,Ultra-processed foods,false,new subclass: COOKIE BUTTER SPREAD
+Luna Cream,COOKING SAUCES,COOKING CREAM,Ultra-processed foods,false,web: Luna Cream = sterilised UHT cow's milk cream (NFCL Saudi)
+Lunn Thai Seasoning,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,
+Lyons Burger Sauce,TABLE SAUCES,BURGER SAUCE,Ultra-processed foods,false,new subclass: BURGER SAUCE
+Lyons Greek Light Salad Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Lyons Greek Vinaigrette Salad Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Lyons Island Salad Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Lyons Italian Light Salad Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Lyons Italian Vinaigrette Salad Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Lyons Salad Cream Salad Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,new subclass: SALAD DRESSING
+Ma Cuisine Classic Tartare Sauce,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,new subclass: OTHER CONDIMENT SAUCE
+Ma Cuisine Mango Chutney,TABLE SAUCES,CHUTNEY,Ultra-processed foods,false,new subclass: CHUTNEY
+Ma Cuisine Tomato Chutney,TABLE SAUCES,CHUTNEY,Ultra-processed foods,false,new subclass: CHUTNEY
+Maille Dijon Original Mustard,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+MARMITE ORIGINAL,JAM/OTHER SPREADS,YEAST EXTRACT SPREAD,Ultra-processed foods,false,new subclass: YEAST EXTRACT SPREAD
+Martini Rose Demisec Sparkling Wine,ALCOHOLIC BEVERAGES,SPARKLING WINE,Ultra-processed foods,false,ALCOHOLIC: sparkling wine — current taxonomy does not cover alcohol
+Melinda S Extra Reserve,TABLE SAUCES,CHILLI/HOT SAUCE,Ultra-processed foods,false,web: Melinda's XXXX Reserve = habanero hot sauce
+Melvins Herbal Seasoning Mix,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,
+Meridian Organic Tahini Dark,JAM/OTHER SPREADS,TAHINI,Ultra-processed foods,false,new subclass: TAHINI
+Meridian Organic Tahini Light,JAM/OTHER SPREADS,TAHINI,Ultra-processed foods,false,new subclass: TAHINI
+Meridian Tahini Dark,JAM/OTHER SPREADS,TAHINI,Ultra-processed foods,false,new subclass: TAHINI
+Miyata Bio Organic Miso Aka Paste,COOKING SAUCES,MISO PASTE,Ultra-processed foods,false,new subclass: MISO PASTE
+Miyata Sushi Expert Mirin,COOKING SAUCES,TERIYAKI/MIRIN,Ultra-processed foods,false,new subclass: TERIYAKI/MIRIN
+Miyata Teriyaki Sauce,COOKING SAUCES,TERIYAKI/MIRIN,Ultra-processed foods,false,new subclass: TERIYAKI/MIRIN
+Mj S Italian Dressing,TABLE SAUCES,SALAD DRESSING,Ultra-processed foods,false,
+MJ s Premium Yellow Mustard Sauce,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+MJ’s Barbecue Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+MJ’s Mayochup Sauce,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,new subclass: OTHER CONDIMENT SAUCE
+Mohawk Man Go Wild,FRUIT DRINKS/SWEETENED JUICES & BOTTLED TEAS,FRUIT DRINKS/SWEETENED JUICE,Ultra-processed foods,false,Mohawk mango juice drink
+Mohawk ManGo Wild,FRUIT DRINKS/SWEETENED JUICES & BOTTLED TEAS,FRUIT DRINKS/SWEETENED JUICE,Ultra-processed foods,false,Mohawk mango juice drink
+Morning Harvest Bran Flakes,BREAKFAST CEREALS,BRAN CEREALS,Ultra-processed foods,false,new subclass: BRAN CEREALS
+Morning Harvest Strawberry Muesli,BREAKFAST CEREALS,MUESLI,Ultra-processed foods,false,new subclass: MUESLI
+Mother S Recipe Tandoori Paste,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Mulsons Biryani Masala,HERBS AND SPICES,SPICES - BIRYANI MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - BIRYANI MASALA
+Mulsons Cloves Powder,HERBS AND SPICES,SPICES - CLOVES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CLOVES
+Mulsons Nutmeg Powder,HERBS AND SPICES,SPICES - NUTMEG,Unprocessed/Minimally processed foods,false,new subclass: SPICES - NUTMEG
+Mulsons Poussin Sauce Blend Mild,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Mulsons Poussin Sauce Blend Mild 10,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Mulsons Sage,HERBS AND SPICES,HERBS - SAGE,Unprocessed/Minimally processed foods,false,new subclass: HERBS - SAGE
+Mulsons Spices Cloves Whole,HERBS AND SPICES,SPICES - CLOVES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CLOVES
+Mulsons Spices Coriander Powder,HERBS AND SPICES,HERBS - CORIANDER/DHANIA,Unprocessed/Minimally processed foods,false,keyword rule -> HERBS - CORIANDER/DHANIA
+Mulsons Spices Mixed Spices,HERBS AND SPICES,SPICES - MIXED SPICES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MIXED SPICES
+Mulsons Spices Oregano,HERBS AND SPICES,HERBS - OREGANO,Unprocessed/Minimally processed foods,false,new subclass: HERBS - OREGANO
+Mulsons Spices Parsley,HERBS AND SPICES,HERBS - PARSLEY,Unprocessed/Minimally processed foods,false,new subclass: HERBS - PARSLEY
+Mulsons Spices Rubbed Basil,HERBS AND SPICES,HERBS - BASIL,Unprocessed/Minimally processed foods,false,new subclass: HERBS - BASIL
+Mulsons Tandoori Masala,HERBS AND SPICES,SPICES - TANDOORI MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - TANDOORI MASALA
+Mulsons White Pepper Powder,HERBS AND SPICES,SPICES - BLACK PEPPER,Unprocessed/Minimally processed foods,false,keyword rule -> SPICES - BLACK PEPPER
+Nandos Peri Peri Bag Bake Hot,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Nandos Peri Peri Rub Garlic Med,HERBS AND SPICES,SPICES - PERI PERI RUB,Unprocessed/Minimally processed foods,false,new subclass: SPICES - PERI PERI RUB
+Nandos Peri Peri Rub Smokey Bbq Med,HERBS AND SPICES,SPICES - PERI PERI RUB,Unprocessed/Minimally processed foods,false,new subclass: SPICES - PERI PERI RUB
+Nappi Monorpaglia Colored Balls,CANDY AND CONFECTIONERY,SWEETS/CANDY,Ultra-processed foods,false,sugar-coated candy balls
+Naturalli Barley Flakes Pot,BREAKFAST CEREALS,OATMEAL/PORRIDGE,Unprocessed/Minimally processed foods,false,barley flakes pot
+Naturalli Cranberry Crunch Muesli Cereal,BREAKFAST CEREALS,MUESLI,Ultra-processed foods,false,new subclass: MUESLI
+Naturalli Crunchy Bran Muesli Cereal,BREAKFAST CEREALS,MUESLI,Ultra-processed foods,false,new subclass: MUESLI
+Naturalli Moringa Powder,HERBS AND SPICES,SPICES - MORINGA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MORINGA
+Naturalli Salted Almond Butter,JAM/OTHER SPREADS,NUT BUTTER,Ultra-processed foods,false,new subclass: NUT BUTTER
+Naturalli Sesame Seeds,HERBS AND SPICES,SPICES - SESAME SEEDS,Unprocessed/Minimally processed foods,false,new subclass: SPICES - SESAME SEEDS
+Naturalli Strawberry Muesli Cereal,BREAKFAST CEREALS,MUESLI,Ultra-processed foods,false,new subclass: MUESLI
+Naturalli Super Swiss Muesli Cereal,BREAKFAST CEREALS,MUESLI,Ultra-processed foods,false,new subclass: MUESLI
+Naturalli Unsalted Almond Butter,JAM/OTHER SPREADS,NUT BUTTER,Ultra-processed foods,false,new subclass: NUT BUTTER
+NATURE S OWN BIRYANI MASALA,HERBS AND SPICES,SPICES - BIRYANI MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - BIRYANI MASALA
+Nature s Own Fennel Seeds,HERBS AND SPICES,SPICES - FENNEL,Unprocessed/Minimally processed foods,false,
+Nature s Own Ground Cloves,HERBS AND SPICES,SPICES - CLOVES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CLOVES
+Nature s Own Ground Mustard,HERBS AND SPICES,SPICES - MUSTARD,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MUSTARD
+Nature s Own Ground Spice Onion Powder,HERBS AND SPICES,SPICES - ONION POWDER,Unprocessed/Minimally processed foods,false,new subclass: SPICES - ONION POWDER
+Nature s Own Ground White Pepper,HERBS AND SPICES,SPICES - BLACK PEPPER,Unprocessed/Minimally processed foods,false,keyword rule -> SPICES - BLACK PEPPER
+Nature s Own Mixed Herbs,HERBS AND SPICES,HERBS - MIXED HERBS,Unprocessed/Minimally processed foods,false,new subclass: HERBS - MIXED HERBS
+Nature s Own Mixed Spices,HERBS AND SPICES,SPICES - MIXED SPICES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MIXED SPICES
+Nature s Own Spice Mix Chat Masala,HERBS AND SPICES,SPICES - CHAT MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CHAT MASALA
+Nature s Own Spice Mix Tandoori Masala,HERBS AND SPICES,SPICES - TANDOORI MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - TANDOORI MASALA
+Nature s Own Tandoori Masala,HERBS AND SPICES,SPICES - TANDOORI MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - TANDOORI MASALA
+Nature s Own Whole Fenugreek Seeds,HERBS AND SPICES,SPICES - FENUGREEK,Unprocessed/Minimally processed foods,false,new subclass: SPICES - FENUGREEK
+Nature s Own Whole Spices Mustard,HERBS AND SPICES,SPICES - MUSTARD,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MUSTARD
+Nature s Tastes Kachumbari Medium Red Salsa,TABLE SAUCES,SALSA/GUACAMOLE,Ultra-processed foods,false,new subclass: SALSA/GUACAMOLE
+Nature s Tastes Kachumbari Mild Red Salsa,TABLE SAUCES,SALSA/GUACAMOLE,Ultra-processed foods,false,new subclass: SALSA/GUACAMOLE
+Nature Taste Tahini Paste,JAM/OTHER SPREADS,TAHINI,Ultra-processed foods,false,new subclass: TAHINI
+Natures Own Biryani Masala,HERBS AND SPICES,SPICES - BIRYANI MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - BIRYANI MASALA
+Natures Own Onion Powder,HERBS AND SPICES,SPICES - ONION POWDER,Unprocessed/Minimally processed foods,false,new subclass: SPICES - ONION POWDER
+Natures Own Whole Nutmeg,HERBS AND SPICES,SPICES - NUTMEG,Unprocessed/Minimally processed foods,false,new subclass: SPICES - NUTMEG
+Nestle Cerevita Flakes With Milk,BREAKFAST CEREALS,BREAKFAST CEREAL FLAKES,Ultra-processed foods,false,new subclass: BREAKFAST CEREAL FLAKES
+Nestle Cerevita Honey Breakfast Cereal,BREAKFAST CEREALS,BREAKFAST CEREAL FLAKES,Ultra-processed foods,false,new subclass: BREAKFAST CEREAL FLAKES
+Nestle Cerevita Honey Breakfast Cereals Flakes,BREAKFAST CEREALS,BREAKFAST CEREAL FLAKES,Ultra-processed foods,false,new subclass: BREAKFAST CEREAL FLAKES
+Novi Black Beans,"PULSES - PEAS, LENTILS, BEANS",BLACK BEANS (NJAHI),Unprocessed/Minimally processed foods,false,black beans
+Ntamu Traditional Pizza Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,
+Nutcracker Sesame Seeds,HERBS AND SPICES,SPICES - SESAME SEEDS,Unprocessed/Minimally processed foods,false,new subclass: SPICES - SESAME SEEDS
+Nutrameal Black Grams,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,black gram = urad dal (lentil-type)
+Nutrameal Black Njahi Beans,"PULSES - PEAS, LENTILS, BEANS",BLACK BEANS (NJAHI),Unprocessed/Minimally processed foods,false,
+Nutrameal Brown Roscoco Beans,"PULSES - PEAS, LENTILS, BEANS",ROSECOCO BEANS,Unprocessed/Minimally processed foods,false,new subclass: ROSECOCO BEANS
+Nutrameal Butter Beans,"PULSES - PEAS, LENTILS, BEANS",BUTTER/LIMA BEANS,Unprocessed/Minimally processed foods,false,new subclass: BUTTER/LIMA BEANS
+Nutrameal Chana Dal,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,chana = chickpea lentil
+Nutrameal Golden Grams,BREAKFAST CEREALS,OATMEAL/PORRIDGE,Ultra-processed foods,false,new subclass: OATMEAL/PORRIDGE
+Nutrameal Kalonji,HERBS AND SPICES,SPICES - KALONJI/BLACK SEEDS,Unprocessed/Minimally processed foods,false,new subclass: SPICES - KALONJI/BLACK SEEDS
+Nutrameal Mwitemania Beans,"PULSES - PEAS, LENTILS, BEANS",KENYAN HERITAGE BEANS,Unprocessed/Minimally processed foods,false,new subclass: KENYAN HERITAGE BEANS
+Nutrameal Nyayo Beans,"PULSES - PEAS, LENTILS, BEANS",NYAYO BEANS,Unprocessed/Minimally processed foods,false,new subclass: NYAYO BEANS
+Nutrameal Pigeon Peas,"PULSES - PEAS, LENTILS, BEANS",PIGEON PEAS,Unprocessed/Minimally processed foods,false,new subclass: PIGEON PEAS
+Nutrameal Red Cowpeas,"PULSES - PEAS, LENTILS, BEANS",COWPEAS/CHORA,Unprocessed/Minimally processed foods,false,new subclass: COWPEAS/CHORA
+Nutrameal Red Kidney Beans,"PULSES - PEAS, LENTILS, BEANS",KIDNEY BEANS,Unprocessed/Minimally processed foods,false,new subclass: KIDNEY BEANS
+Nutrameal Regular Chick Peas,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,chickpeas
+NUTRAMEAL ROSCOCO WHITE BEANS,"PULSES - PEAS, LENTILS, BEANS",ROSECOCO BEANS,Unprocessed/Minimally processed foods,false,new subclass: ROSECOCO BEANS
+Nutrameal Soya Beans,"PULSES - PEAS, LENTILS, BEANS",SOYA BEANS,Unprocessed/Minimally processed foods,false,new subclass: SOYA BEANS
+Nutrameal Split Moongdal,"PULSES - PEAS, LENTILS, BEANS",GREEN GRAMS,Unprocessed/Minimally processed foods,false,moong = mung = green gram
+Nutrameal Split Urad Dal,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,urad dal split
+Nutrameal Split Washed Moong Dal,"PULSES - PEAS, LENTILS, BEANS",GREEN GRAMS,Unprocessed/Minimally processed foods,false,moong dal = green gram
+Nutrameal Wairimu Beans,"PULSES - PEAS, LENTILS, BEANS",KENYAN HERITAGE BEANS,Unprocessed/Minimally processed foods,false,new subclass: KENYAN HERITAGE BEANS
+Nutrameal Washed Urad Dal,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,urad dal (black gram lentil)
+Nutrameal White Cowpeas,"PULSES - PEAS, LENTILS, BEANS",COWPEAS/CHORA,Unprocessed/Minimally processed foods,false,new subclass: COWPEAS/CHORA
+Nutrameal Whole Nutmeg,HERBS AND SPICES,SPICES - NUTMEG,Unprocessed/Minimally processed foods,false,new subclass: SPICES - NUTMEG
+Nutrameal Yellow Beans,"PULSES - PEAS, LENTILS, BEANS",YELLOW BEANS,Unprocessed/Minimally processed foods,false,new subclass: YELLOW BEANS
+Nutrameal Yellow Grams Chana,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,chana = chickpea
+NuVita Cereos Choco Chip Cereal,BREAKFAST CEREALS,FILLED CEREAL/POPS,Ultra-processed foods,false,new subclass: FILLED CEREAL/POPS
+NuVita Cereos Honey Cinnamon Cereal,BREAKFAST CEREALS,FILLED CEREAL/POPS,Ultra-processed foods,false,new subclass: FILLED CEREAL/POPS
+NuVita Cereos Oatmeal Cereal,BREAKFAST CEREALS,OATMEAL/PORRIDGE,Ultra-processed foods,false,new subclass: OATMEAL/PORRIDGE
+NuVita Porridge Oats,BREAKFAST CEREALS,OATMEAL/PORRIDGE,Ultra-processed foods,false,new subclass: OATMEAL/PORRIDGE
+Ola Hot Salsa Dipping Sauce,TABLE SAUCES,DIPPING SAUCE,Ultra-processed foods,false,new subclass: DIPPING SAUCE
+Old El Paso Fajita Seasoning Mix,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,
+Old El Paso Fajita Tomato Pep Mx,COOKING SAUCES,STIR FRY/ASIAN SAUCE,Ultra-processed foods,false,new subclass: STIR FRY/ASIAN SAUCE
+Old El Paso Squeeze Guacamole,TABLE SAUCES,SALSA/GUACAMOLE,Ultra-processed foods,false,new subclass: SALSA/GUACAMOLE
+Old El Paso Sqzy Chunck Salsa,TABLE SAUCES,SALSA/GUACAMOLE,Ultra-processed foods,false,new subclass: SALSA/GUACAMOLE
+ONGA MCHUZI SPICY TOMATO,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Oomf Apple Pots,BREAKFAST CEREALS,FRUIT BREAKFAST POT,Ultra-processed foods,false,new subclass: FRUIT BREAKFAST POT
+Oomf Banana Pots,BREAKFAST CEREALS,FRUIT BREAKFAST POT,Ultra-processed foods,false,new subclass: FRUIT BREAKFAST POT
+Orley s Basil Leaves,HERBS AND SPICES,HERBS - BASIL,Unprocessed/Minimally processed foods,false,new subclass: HERBS - BASIL
+Orley s Ground White Pepper,HERBS AND SPICES,SPICES - BLACK PEPPER,Unprocessed/Minimally processed foods,false,keyword rule -> SPICES - BLACK PEPPER
+Orley s Herbs Marjoram Leaves,HERBS AND SPICES,HERBS - MARJORAM,Unprocessed/Minimally processed foods,false,new subclass: HERBS - MARJORAM
+Orley s Herbs Mint Leaves Spices,HERBS AND SPICES,HERBS - MINT,Unprocessed/Minimally processed foods,false,new subclass: HERBS - MINT
+Orley s Herbs Rosemary Leaves,HERBS AND SPICES,HERBS - BAY LEAVES,Unprocessed/Minimally processed foods,false,keyword rule -> HERBS - BAY LEAVES
+Orley s Oregano Leaves,HERBS AND SPICES,HERBS - OREGANO,Unprocessed/Minimally processed foods,false,new subclass: HERBS - OREGANO
+Orley s Parsley Leaves,HERBS AND SPICES,HERBS - PARSLEY,Unprocessed/Minimally processed foods,false,new subclass: HERBS - PARSLEY
+Orley s Pure Ground Mixed Spices,HERBS AND SPICES,SPICES - MIXED SPICES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MIXED SPICES
+Orley s Pure Ground Mustard,HERBS AND SPICES,SPICES - MUSTARD,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MUSTARD
+Orley s Pure Mixed Herbs,HERBS AND SPICES,HERBS - MIXED HERBS,Unprocessed/Minimally processed foods,false,new subclass: HERBS - MIXED HERBS
+Orley s Sage Leaves,HERBS AND SPICES,HERBS - SAGE,Unprocessed/Minimally processed foods,false,new subclass: HERBS - SAGE
+ORLEY S SPICE CLOVES GRD,HERBS AND SPICES,SPICES - CLOVES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CLOVES
+Orley s Spice Onion Powder,HERBS AND SPICES,SPICES - ONION POWDER,Unprocessed/Minimally processed foods,false,new subclass: SPICES - ONION POWDER
+Orley s Spice Pure Ground Tandoori Masala,HERBS AND SPICES,SPICES - TANDOORI MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - TANDOORI MASALA
+Orley s Thyme Leaves,HERBS AND SPICES,HERBS - THYME,Unprocessed/Minimally processed foods,false,new subclass: HERBS - THYME
+Osterberg Ameln Frutb Al Vera,FRUIT DRINKS/SWEETENED JUICES & BOTTLED TEAS,FRUIT DRINKS/SWEETENED JUICE,Ultra-processed foods,false,Osterberg Frutbar Aloe Vera fruit drink
+Papillion Jellino,CANDY AND CONFECTIONERY,SWEETS/CANDY,Ultra-processed foods,false,Papillion Jellino jelly candy
+Patak S Bhuna Sauce,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Patak S Brinjal Pickle,TABLE SAUCES,PICKLE,Ultra-processed foods,false,new subclass: PICKLE
+Pataks Batli Curry Sauce,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Pataks Jalfrezi Curry Sauce,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Pataks Pickle Mango Mixed,TABLE SAUCES,PICKLE,Ultra-processed foods,false,new subclass: PICKLE
+Pataks Vindaloo Curry Sauce,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Pearl Njahi Black Beans,"PULSES - PEAS, LENTILS, BEANS",BLACK BEANS (NJAHI),Unprocessed/Minimally processed foods,false,
+Pearl Pulses Nyayo Beans,"PULSES - PEAS, LENTILS, BEANS",NYAYO BEANS,Unprocessed/Minimally processed foods,false,new subclass: NYAYO BEANS
+Pearl Yellow Beans,"PULSES - PEAS, LENTILS, BEANS",YELLOW BEANS,Unprocessed/Minimally processed foods,false,new subclass: YELLOW BEANS
+Peptang Choma Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,choma=grill marinade (Kenyan)
+Peptang Fruity Brown Sauce,TABLE SAUCES,BROWN/WORCESTERSHIRE SAUCE,Ultra-processed foods,false,new subclass: BROWN/WORCESTERSHIRE SAUCE
+Peptang Maple Syrup,JAM/OTHER SPREADS,SYRUP,Ultra-processed foods,false,new subclass: SYRUP
+Peptang Masala Sauce,TABLE SAUCES,CHILLI/HOT SAUCE,Ultra-processed foods,false,Peptang spicy masala-flavoured sauce (Kenyan chilli sauce line)
+Peptang Pet Orange Marmalade Fruit Jam,JAM/OTHER SPREADS,MARMALADE,Ultra-processed foods,false,keyword rule -> MARMALADE
+Peptang Tomato And Onion Kachumbari Sauce,TABLE SAUCES,SALSA/GUACAMOLE,Ultra-processed foods,false,new subclass: SALSA/GUACAMOLE
+Pietro Coricelli Arrabbiata Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Pietro Coricelli Napoletana Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Pietro Coricelli Pesto Sauce,COOKING SAUCES,PESTO,Ultra-processed foods,false,new subclass: PESTO
+PIETRO RED PESTO SAUCE,COOKING SAUCES,PESTO,Ultra-processed foods,false,new subclass: PESTO
+Proctor And Allan Quick Porridge Oats,BREAKFAST CEREALS,OATMEAL/PORRIDGE,Ultra-processed foods,false,new subclass: OATMEAL/PORRIDGE
+Ragu Cheese Creation Six Cheese Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Ragu Chunky Sauteed Onion And Garlic Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Ragu Chunky Tomato Garlic And Onion Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Ragu Hearty Traditional Tomato Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Ragu Homemade Style Pizza Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Ragu Mama s Special Garden Chunky Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Ragu Mushroom And Green Pepper Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Ragu Mushroom Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Ragu Old World Style Marinara Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Ragu Old World Style Meat Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Ragu Old World Style Mushroom Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Real Thai Red Curry Paste,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Real Thai Spring Rolls Sauce,TABLE SAUCES,DIPPING SAUCE,Ultra-processed foods,false,
+Robertson s Rice Spices,HERBS AND SPICES,SPICES - RICE SEASONING,Unprocessed/Minimally processed foods,false,
+Robertsons Veggie Seasoning,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,
+Roland Dijon Mustard Provencal Herbs,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+Roland Premium English Mint Jelly,JAM/OTHER SPREADS,JELLY (NON-FRUIT),Ultra-processed foods,false,new subclass: JELLY (NON-FRUIT)
+Royal Umbrella Oyster Sauce,COOKING SAUCES,OYSTER SAUCE,Ultra-processed foods,false,new subclass: OYSTER SAUCE
+Royco Nyama Choma Spice,HERBS AND SPICES,SPICES - NYAMA CHOMA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - NYAMA CHOMA
+Royco Wet Dry Fry Spice,HERBS AND SPICES,SPICES - DRY-FRY SPICE,Unprocessed/Minimally processed foods,false,new subclass: SPICES - DRY-FRY SPICE
+Rufus Teague Honey Sweet Bbq Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+Rufus Teague Meat Rub,HERBS AND SPICES,SPICES - MEAT/BBQ RUB,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MEAT/BBQ RUB
+Rufus Teague Smoky Apple,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,Rufus Teague smoky apple BBQ
+Rufus Teague Spicy Meat Rub,HERBS AND SPICES,SPICES - MEAT/BBQ RUB,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MEAT/BBQ RUB
+Rufus Teague Spicy Steak Sauce,TABLE SAUCES,BROWN/WORCESTERSHIRE SAUCE,Ultra-processed foods,false,new subclass: BROWN/WORCESTERSHIRE SAUCE
+Rufus Teague Steak Rub,HERBS AND SPICES,SPICES - MEAT/BBQ RUB,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MEAT/BBQ RUB
+Rufus Teague Steak Sauce,TABLE SAUCES,BROWN/WORCESTERSHIRE SAUCE,Ultra-processed foods,false,new subclass: BROWN/WORCESTERSHIRE SAUCE
+Rufus Teague Sugar Free Slim Sweet,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,Rufus Teague = BBQ brand
+SACLA CLASSIC BASIL PESTO,COOKING SAUCES,PESTO,Ultra-processed foods,false,new subclass: PESTO
+Sacla Intenso Tomato And Garlic Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Sacla Intenso Tomato And Olive Pasta Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,new subclass: PASTA SAUCE
+Sacla Italia Sun Dried Tomato Pesto,COOKING SAUCES,PESTO,Ultra-processed foods,false,new subclass: PESTO
+Sacla Vegan Basil Pesto Sauce,COOKING SAUCES,PESTO,Ultra-processed foods,false,new subclass: PESTO
+SACLA WILD ROCKET PESTO,COOKING SAUCES,PESTO,Ultra-processed foods,false,new subclass: PESTO
+Safir Pizza Sauce,COOKING SAUCES,PASTA SAUCE,Ultra-processed foods,false,
+SANTA MARIA FISH SAUCE,COOKING SAUCES,FISH SAUCE,Ultra-processed foods,false,new subclass: FISH SAUCE
+SANTA MARIA OYSTER SAUCE,COOKING SAUCES,OYSTER SAUCE,Ultra-processed foods,false,new subclass: OYSTER SAUCE
+Sante Fruit Granola,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Sante Fruit Muesli,BREAKFAST CEREALS,MUESLI,Ultra-processed foods,false,new subclass: MUESLI
+Sante Nut Cereal Flakes Granola With Nut,BREAKFAST CEREALS,GRANOLA,Ultra-processed foods,false,new subclass: GRANOLA
+Sante Traditional Muesli,BREAKFAST CEREALS,MUESLI,Ultra-processed foods,false,new subclass: MUESLI
+Sante Tropical Muesli,BREAKFAST CEREALS,MUESLI,Ultra-processed foods,false,new subclass: MUESLI
+Sea Korus Premium Oyster Sauce,COOKING SAUCES,OYSTER SAUCE,Ultra-processed foods,false,new subclass: OYSTER SAUCE
+Sesame Seeds,HERBS AND SPICES,SPICES - SESAME SEEDS,Unprocessed/Minimally processed foods,false,new subclass: SPICES - SESAME SEEDS
+Shalimar Prawns Piri Piri Spice,HERBS AND SPICES,SPICES - PIRI PIRI BLEND,Unprocessed/Minimally processed foods,false,new subclass: SPICES - PIRI PIRI BLEND
+Shalimar Vegetable Masala Spice,HERBS AND SPICES,SPICES - VEGETABLE MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - VEGETABLE MASALA
+Shan Chicken Ginger Seasoning Mix,HERBS AND SPICES,SPICES - GINGER,Unprocessed/Minimally processed foods,false,keyword rule -> SPICES - GINGER
+Shan Split White Urad Dal,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,urad dal
+Shan White Urad Dal,"PULSES - PEAS, LENTILS, BEANS",LENTILS,Unprocessed/Minimally processed foods,false,urad dal
+Sharwood Green Label Mango Chutney,TABLE SAUCES,CHUTNEY,Ultra-processed foods,false,new subclass: CHUTNEY
+Sharwood Green Label Spread Mango Chutney,JAM/OTHER SPREADS,CHUTNEY,Ultra-processed foods,false,new subclass: CHUTNEY
+Sharwood Hoisin Marinade Sauce,COOKING SAUCES,HOISIN SAUCE,Ultra-processed foods,false,new subclass: HOISIN SAUCE
+Sharwood Jalfrezi Sauce,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Sharwood Korma Less Fat,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Sharwood Korma Sauce,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Sharwood Real Oyster Sauce,COOKING SAUCES,OYSTER SAUCE,Ultra-processed foods,false,new subclass: OYSTER SAUCE
+Sharwood Rogan Josh,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Sharwood Stir Fry Black Bean Sauce,COOKING SAUCES,STIR FRY/ASIAN SAUCE,Ultra-processed foods,false,new subclass: STIR FRY/ASIAN SAUCE
+Sharwood Stir Fry Sweet Sour Sauce,COOKING SAUCES,STIR FRY/ASIAN SAUCE,Ultra-processed foods,false,new subclass: STIR FRY/ASIAN SAUCE
+Sharwood Sweet Sour Less Sug,COOKING SAUCES,STIR FRY/ASIAN SAUCE,Ultra-processed foods,false,new subclass: STIR FRY/ASIAN SAUCE
+Sharwood Tik Mas Less Fat,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Sharwood Tikka Masala Sauce,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Simba Mbili Cloves Ground Spices,HERBS AND SPICES,SPICES - CLOVES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CLOVES
+Simba Mbili Dried Rosemary Leaves,HERBS AND SPICES,HERBS - BAY LEAVES,Unprocessed/Minimally processed foods,false,keyword rule -> HERBS - BAY LEAVES
+Simba Mbili Mixed Herbs,HERBS AND SPICES,HERBS - MIXED HERBS,Unprocessed/Minimally processed foods,false,new subclass: HERBS - MIXED HERBS
+Simba Mbili Mustard Powder,HERBS AND SPICES,SPICES - MUSTARD,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MUSTARD
+Simba Mbili Oregano,HERBS AND SPICES,HERBS - OREGANO,Unprocessed/Minimally processed foods,false,new subclass: HERBS - OREGANO
+Simba Mbili Resuns Ground Cloves,HERBS AND SPICES,SPICES - CLOVES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CLOVES
+Stokes Hot Spicy Bbq Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+Stokes Original Bbq Sauce Squeze,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+Stokes Real Brown Sauce,TABLE SAUCES,BROWN/WORCESTERSHIRE SAUCE,Ultra-processed foods,false,new subclass: BROWN/WORCESTERSHIRE SAUCE
+Stokes Real Brown Sauce Squeezy,TABLE SAUCES,BROWN/WORCESTERSHIRE SAUCE,Ultra-processed foods,false,new subclass: BROWN/WORCESTERSHIRE SAUCE
+Stokes Redcurrant Jelly,JAM/OTHER SPREADS,JELLY (NON-FRUIT),Ultra-processed foods,false,new subclass: JELLY (NON-FRUIT)
+Stokes Sweet Sticky Bbq Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,new subclass: BBQ SAUCE
+Sues Naturals Organic Moringa Powder,HERBS AND SPICES,SPICES - MORINGA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MORINGA
+Suhana Aamchur Powder,HERBS AND SPICES,SPICES - AAMCHUR/MANGO POWDER,Unprocessed/Minimally processed foods,false,new subclass: SPICES - AAMCHUR/MANGO POWDER
+Suhana Chhole Masala,HERBS AND SPICES,SPICES - CHHOLE MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CHHOLE MASALA
+Suhana Malai Kofta,HERBS AND SPICES,SPICES - MALAI KOFTA MIX,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MALAI KOFTA MIX
+Suhana Paneer Butter Masala,HERBS AND SPICES,SPICES - PANEER MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - PANEER MASALA
+Suhana Paneer Masala,HERBS AND SPICES,SPICES - PANEER MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - PANEER MASALA
+Suhana Ready To Cook Fish Curry,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Suhana Ready To Cook Lamb Curry,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Suhana Ready To Cook Manchurian,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Suhana Ready To Cook Mutoon Kolhapuri,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Suhana Ready To Cook Mutter Methi Nong,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Suhana Ready To Cook Paneer Makhan,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Suhana Rtc Mutter Paneer Nong,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,Suhana RTC Mutter Paneer (peas+paneer curry sauce); moved from PROCESSED MEAT
+SUNRICE LONG GRAIN,CEREAL GRAINS,WHITE RICE,Unprocessed/Minimally processed foods,false,long grain = white rice
+Suree Fish Sauce,COOKING SAUCES,FISH SAUCE,Ultra-processed foods,false,moved from TABLE SAUCES
+Suree Hoisin Sauce,COOKING SAUCES,HOISIN SAUCE,Ultra-processed foods,false,moved from TABLE SAUCES
+Suree Pad Thai Sauce,COOKING SAUCES,STIR FRY/ASIAN SAUCE,Ultra-processed foods,false,new subclass: STIR FRY/ASIAN SAUCE
+Suree Spring Roll Dipping Sauce,TABLE SAUCES,DIPPING SAUCE,Ultra-processed foods,false,new subclass: DIPPING SAUCE
+SUREE SUKIYAKI SAUCE,COOKING SAUCES,TERIYAKI/MIRIN,Ultra-processed foods,false,new subclass: TERIYAKI/MIRIN
+Suree Sweet Plum Sauce,TABLE SAUCES,DIPPING SAUCE,Ultra-processed foods,false,new subclass: DIPPING SAUCE
+Suree Thai Green Curry Paste,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Suree Thai Massamum Curry Paste,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Suree Thai Panang Curry Paste,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Suree Thai Yellow Curry Paste,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+SUREE TOM YUM CURRY PASTE,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Sweetunda Fruit Chutney,TABLE SAUCES,CHUTNEY,Ultra-processed foods,false,new subclass: CHUTNEY
+Temmy s Choco Pillow Cocoa Cream Filled Cereal,BREAKFAST CEREALS,FILLED CEREAL/POPS,Ultra-processed foods,false,new subclass: FILLED CEREAL/POPS
+Temmy s Choco Scoops Cereal,BREAKFAST CEREALS,FILLED CEREAL/POPS,Ultra-processed foods,false,
+Temmy s Honey Pops Cereal,BREAKFAST CEREALS,FILLED CEREAL/POPS,Ultra-processed foods,false,new subclass: FILLED CEREAL/POPS
+Temmy s Kids Variety Pack Cereal,BREAKFAST CEREALS,FILLED CEREAL/POPS,Ultra-processed foods,false,
+TEMMYS CEREAL SWEET FLAKES,BREAKFAST CEREALS,BREAKFAST CEREAL FLAKES,Ultra-processed foods,false,
+Thai Dancer Black Pepper Sauce,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,new subclass: OTHER CONDIMENT SAUCE
+Thai Dancer Green Curry Paste,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Thai Dancer Massaman Curry Paste,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Thai Dancer Oriental Hoisin Sauce,COOKING SAUCES,HOISIN SAUCE,Ultra-processed foods,false,new subclass: HOISIN SAUCE
+Thai Dancer Red Curry Paste,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Thai Dancer Sweet And Sour Sauce,COOKING SAUCES,STIR FRY/ASIAN SAUCE,Ultra-processed foods,false,moved from TABLE SAUCES
+Thai Dancer Tom Kha Curry Paste,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+THAI DANCER TOM YUM PASTE,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+THAI DANCER YELLOW CURRY PASTE,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Top Food American Barbeque Rub Seasoning,HERBS AND SPICES,SPICES - MEAT/BBQ RUB,Unprocessed/Minimally processed foods,false,
+Top Food Basil,HERBS AND SPICES,HERBS - BASIL,Unprocessed/Minimally processed foods,false,new subclass: HERBS - BASIL
+TOP FOOD C MASALA,HERBS AND SPICES,SPICES - MIXED SPICES,Unprocessed/Minimally processed foods,false,Top Food C Masala (generic curry masala)
+Top Food Chicken Tikka Masala,COOKING SAUCES,CURRY SAUCE/PASTE,Ultra-processed foods,false,new subclass: CURRY SAUCE/PASTE
+Top Food Chilli And Lemon Seasoning,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,
+TOP FOOD CLOVE POWDER,HERBS AND SPICES,SPICES - CLOVES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CLOVES
+Top Food Fajita Seasoning,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,fajita seasoning
+Top Food Greek Spice Blend,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,new subclass: SPICES - SEASONING BLEND
+Top Food Ground Onion Spice,HERBS AND SPICES,SPICES - ONION POWDER,Unprocessed/Minimally processed foods,false,new subclass: SPICES - ONION POWDER
+Top Food Hot Blend Poussin Sauce,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Top Food Indian Chat Masala,HERBS AND SPICES,SPICES - CHAT MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CHAT MASALA
+Top Food Italian Spice Blend,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,new subclass: SPICES - SEASONING BLEND
+Top Food Lemon And Pepper Seasoning,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,
+Top Food Lemon Pepper And Herb Seasoning,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,
+Top Food Mild Blend Poussin Sauce,COOKING SAUCES,READY-TO-COOK MEAL SAUCE,Ultra-processed foods,false,new subclass: READY-TO-COOK MEAL SAUCE
+Top Food Moringa Ground Herb,HERBS AND SPICES,SPICES - MORINGA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MORINGA
+Top Food Mustard Herb Seasoning,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,
+Top Food Oregano Herbs,HERBS AND SPICES,HERBS - OREGANO,Unprocessed/Minimally processed foods,false,new subclass: HERBS - OREGANO
+Top Food Parsley Herbs,HERBS AND SPICES,HERBS - PARSLEY,Unprocessed/Minimally processed foods,false,new subclass: HERBS - PARSLEY
+Top Food Pasta Seasoning,HERBS AND SPICES,SPICES - PASTA SEASONING,Unprocessed/Minimally processed foods,false,new subclass: SPICES - PASTA SEASONING
+TOP FOOD PERI PERI SEASONING J,HERBS AND SPICES,SPICES - PERI PERI RUB,Unprocessed/Minimally processed foods,false,
+Top Food Pizza Seasoning,HERBS AND SPICES,SPICES - PASTA SEASONING,Unprocessed/Minimally processed foods,false,pizza/pasta seasoning
+TOP FOOD SESAME SEEDS SIMSIM J,HERBS AND SPICES,SPICES - SESAME SEEDS,Unprocessed/Minimally processed foods,false,new subclass: SPICES - SESAME SEEDS
+Top Food Taco Seasoning,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,new subclass: SPICES - SEASONING BLEND
+Top Food Tandoori Masala,HERBS AND SPICES,SPICES - TANDOORI MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - TANDOORI MASALA
+Top Food Thabai Stinging Nettle Ground Herb,HERBS AND SPICES,SPICES - STINGING NETTLE,Unprocessed/Minimally processed foods,false,new subclass: SPICES - STINGING NETTLE
+Top Food Thyme,HERBS AND SPICES,HERBS - THYME,Unprocessed/Minimally processed foods,false,new subclass: HERBS - THYME
+Top Food Whole Clove,HERBS AND SPICES,SPICES - CLOVES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CLOVES
+Top Food Whole Spice Sesame Black Seeds,HERBS AND SPICES,SPICES - SESAME SEEDS,Unprocessed/Minimally processed foods,false,new subclass: SPICES - SESAME SEEDS
+Tropical Heat Basil Rubbed,HERBS AND SPICES,HERBS - BASIL,Unprocessed/Minimally processed foods,false,new subclass: HERBS - BASIL
+Tropical Heat Chips Masala Seasoning,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,chips masala seasoning
+Tropical Heat Cloves Ground,HERBS AND SPICES,SPICES - CLOVES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CLOVES
+Tropical Heat Exotic Snacks,SWEET AND SAVOURY SNACKS,BHUSU MIX,Ultra-processed foods,false,Tropical Heat exotic savoury snacks
+Tropical Heat Meat Tenderiser,HERBS AND SPICES,SPICES - MEAT TENDERISER,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MEAT TENDERISER
+Tropical Heat Mixed Spices,HERBS AND SPICES,SPICES - MIXED SPICES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MIXED SPICES
+Tropical Heat Mixed Spices Whole Grinde,HERBS AND SPICES,SPICES - MIXED SPICES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MIXED SPICES
+Tropical Heat Nutmeg Ground,HERBS AND SPICES,SPICES - NUTMEG,Unprocessed/Minimally processed foods,false,new subclass: SPICES - NUTMEG
+Tropical Heat Spices Biryani Masala,HERBS AND SPICES,SPICES - BIRYANI MASALA,Unprocessed/Minimally processed foods,false,new subclass: SPICES - BIRYANI MASALA
+Tropical Heat Spices Chilli Lemon Seasoning,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,
+Tropical Heat Spices Cloves Ground,HERBS AND SPICES,SPICES - CLOVES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CLOVES
+Tropical Heat Spices Coriander Ground,HERBS AND SPICES,HERBS - CORIANDER/DHANIA,Unprocessed/Minimally processed foods,false,keyword rule -> HERBS - CORIANDER/DHANIA
+Tropical Heat Spices Fireball Grinder,HERBS AND SPICES,SPICES - FIREBALL/GRINDER BLEND,Unprocessed/Minimally processed foods,false,new subclass: SPICES - FIREBALL/GRINDER BLEND
+Tropical Heat Spices Marjoram Leaves,HERBS AND SPICES,HERBS - MARJORAM,Unprocessed/Minimally processed foods,false,new subclass: HERBS - MARJORAM
+Tropical Heat Spices Mint Leaves,HERBS AND SPICES,HERBS - MINT,Unprocessed/Minimally processed foods,false,new subclass: HERBS - MINT
+Tropical Heat Spices Mixed Herbs,HERBS AND SPICES,HERBS - MIXED HERBS,Unprocessed/Minimally processed foods,false,new subclass: HERBS - MIXED HERBS
+Tropical Heat Spices Mixed Spices,HERBS AND SPICES,SPICES - MIXED SPICES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MIXED SPICES
+Tropical Heat Spices Mixed Spices Wet Dry Fry,HERBS AND SPICES,SPICES - DRY-FRY SPICE,Unprocessed/Minimally processed foods,false,new subclass: SPICES - DRY-FRY SPICE
+Tropical Heat Spices Nutmeg Ground,HERBS AND SPICES,SPICES - NUTMEG,Unprocessed/Minimally processed foods,false,new subclass: SPICES - NUTMEG
+Tropical Heat Spices Onion Powder,HERBS AND SPICES,SPICES - ONION POWDER,Unprocessed/Minimally processed foods,false,new subclass: SPICES - ONION POWDER
+Tropical Heat Spices Oregano Leaves,HERBS AND SPICES,HERBS - OREGANO,Unprocessed/Minimally processed foods,false,new subclass: HERBS - OREGANO
+Tropical Heat Spices Parsley Leaves,HERBS AND SPICES,HERBS - PARSLEY,Unprocessed/Minimally processed foods,false,new subclass: HERBS - PARSLEY
+Tropical Heat Spices Pasta Seasoning,HERBS AND SPICES,SPICES - PASTA SEASONING,Unprocessed/Minimally processed foods,false,new subclass: SPICES - PASTA SEASONING
+Tropical Heat Spices Rosemary Leaves,HERBS AND SPICES,HERBS - BAY LEAVES,Unprocessed/Minimally processed foods,false,keyword rule -> HERBS - BAY LEAVES
+Tropical Heat Spices Sage Leaves,HERBS AND SPICES,HERBS - SAGE,Unprocessed/Minimally processed foods,false,new subclass: HERBS - SAGE
+Tropical Heat Spices Thyme Leaves,HERBS AND SPICES,HERBS - THYME,Unprocessed/Minimally processed foods,false,new subclass: HERBS - THYME
+Tropical Sun Allpurpose Seasoning,HERBS AND SPICES,SPICES - ALL PURPOSE SEASONING,Unprocessed/Minimally processed foods,false,new subclass: SPICES - ALL PURPOSE SEASONING
+Tropical Sun Fish Seasoning,HERBS AND SPICES,SPICES - SEASONING BLEND,Unprocessed/Minimally processed foods,false,
+Tropical Sun S Bbq Seasoning,HERBS AND SPICES,SPICES - MEAT/BBQ RUB,Unprocessed/Minimally processed foods,false,
+Vertmont Bio Organic Pure Agave Syrup,JAM/OTHER SPREADS,SYRUP,Ultra-processed foods,false,new subclass: SYRUP
+Virginia Green Garden Barbeque Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,
+Virginia Green Garden Natural And Delicious Golden Cream,COOKING SAUCES,COOKING CREAM,Ultra-processed foods,false,web: VGG Golden Cream = whipped cake/pastry decoration cream (UAE)
+Virginia Green Garden Yellow Mustard,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD
+Virginia Oyster Sauce,COOKING SAUCES,OYSTER SAUCE,Ultra-processed foods,false,new subclass: OYSTER SAUCE
+Wang Shou Yi Thirteen Mixed Spice,HERBS AND SPICES,SPICES - MIXED SPICES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - MIXED SPICES
+Weetabix Bran Flakes,BREAKFAST CEREALS,WHEAT BISCUIT CEREALS,Ultra-processed foods,false,keyword rule -> WHEAT BISCUIT CEREALS
+Weetabix Corn Flakes Fruity Frenzy,BREAKFAST CEREALS,WHEAT BISCUIT CEREALS,Ultra-processed foods,false,keyword rule -> WHEAT BISCUIT CEREALS
+Weetabix Cornflakes Cereals,BREAKFAST CEREALS,WHEAT BISCUIT CEREALS,Ultra-processed foods,false,keyword rule -> WHEAT BISCUIT CEREALS
+WEETABIX CORNFLAKES EXT CRUNCHY,BREAKFAST CEREALS,WHEAT BISCUIT CEREALS,Ultra-processed foods,false,keyword rule -> WHEAT BISCUIT CEREALS
+Weetabix Crispy Crunchy Corn Flakes,BREAKFAST CEREALS,WHEAT BISCUIT CEREALS,Ultra-processed foods,false,keyword rule -> WHEAT BISCUIT CEREALS
+Weetabix Crunch Cornflakes,BREAKFAST CEREALS,WHEAT BISCUIT CEREALS,Ultra-processed foods,false,keyword rule -> WHEAT BISCUIT CEREALS
+Weetabix Rolled Oats,BREAKFAST CEREALS,WHEAT BISCUIT CEREALS,Ultra-processed foods,false,keyword rule -> WHEAT BISCUIT CEREALS
+Wow Salted Snacks,SWEET AND SAVOURY SNACKS,BHUSU MIX,Ultra-processed foods,false,Wow salted savoury snacks
+Wow Sugared Snacks,SWEET AND SAVOURY SNACKS,BHUSU MIX,Ultra-processed foods,false,Wow sugared savoury snacks
+Yeo S Sambal Oeleck Sauce,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,new subclass: OTHER CONDIMENT SAUCE
+Yinlu Barley And Red Bean Mixed Congee,BREAKFAST CEREALS,OATMEAL/PORRIDGE,Ultra-processed foods,false,new subclass: OATMEAL/PORRIDGE
+Zanzibar Basil Spices,HERBS AND SPICES,HERBS - BASIL,Unprocessed/Minimally processed foods,false,new subclass: HERBS - BASIL
+Zanzibar Ground Coriander Spices,HERBS AND SPICES,HERBS - CORIANDER/DHANIA,Unprocessed/Minimally processed foods,false,keyword rule -> HERBS - CORIANDER/DHANIA
+Zanzibar Oregano Spices,HERBS AND SPICES,HERBS - OREGANO,Unprocessed/Minimally processed foods,false,new subclass: HERBS - OREGANO
+Zanzibar Parsley Spices,HERBS AND SPICES,HERBS - PARSLEY,Unprocessed/Minimally processed foods,false,new subclass: HERBS - PARSLEY
+Zanzibar Rosemary Leaves Spices,HERBS AND SPICES,HERBS - BAY LEAVES,Unprocessed/Minimally processed foods,false,keyword rule -> HERBS - BAY LEAVES
+Zanzibar Spices Cloves Powder,HERBS AND SPICES,SPICES - CLOVES,Unprocessed/Minimally processed foods,false,new subclass: SPICES - CLOVES
+Zanzibar Spices Herbs De Provence Spice,HERBS AND SPICES,HERBS - MIXED HERBS,Unprocessed/Minimally processed foods,false,new subclass: HERBS - MIXED HERBS
+Zesta Choma Sauce,TABLE SAUCES,BBQ SAUCE,Ultra-processed foods,false,choma=grill marinade
+Zesta Fruity Spicy Sauce,TABLE SAUCES,OTHER CONDIMENT SAUCE,Ultra-processed foods,false,new subclass: OTHER CONDIMENT SAUCE
+Zesta Gravy Browning,COOKING SAUCES,GRAVY,Ultra-processed foods,false,new subclass: GRAVY
+Zesta Hot Sweet C Sauce,TABLE SAUCES,CHILLI/HOT SAUCE,Ultra-processed foods,false,
+Zesta Mayonnaise Barbecue Sauce,TABLE SAUCES,MAYONNAISE,Ultra-processed foods,false,keyword rule -> MAYONNAISE
+Zesta Orange Marmalade Fruit Jam,JAM/OTHER SPREADS,MARMALADE,Ultra-processed foods,false,keyword rule -> MARMALADE
+Zesta Yellow Mustard,TABLE SAUCES,MUSTARD,Ultra-processed foods,false,new subclass: MUSTARD

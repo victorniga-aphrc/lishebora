@@ -40,6 +40,7 @@ Thumbs.db
 start.sh
 stop.sh
 *.zip
+PGADMIN_CONNECTION.md
 
 # AWS credentials and keys (never commit)
 aws/

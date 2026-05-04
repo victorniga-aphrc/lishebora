@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import SessionLocal
 from app.models import (
+    ClassifierPrediction,
     ExtractedData,
     ExtractionMetadata,
     Ingredient,
@@ -20,14 +21,16 @@ from app.models import (
     NutritionResolution,
     OcrResult,
     ParsedData,
+    ProductClassification,
     ProductNutritionMatchMetadata,
     ProductInfo,
 )
-from app.services.foodclasses_bilstm_inference import (
-    is_strong_catalog_classification,
-    merge_foodclasses_with_classification,
-    predict_foodclasses_from_product_text,
-)
+# BiLSTM is intentionally NOT imported here. The file
+# ``app/services/foodclasses_bilstm_inference.py`` is preserved in the repo for
+# possible future re-activation, but the runtime classifier is OpenAI-only.
+# Only the catalog-strength helper is used at runtime; it has no TF dependency.
+from app.services.foodclasses_bilstm_inference import is_strong_catalog_classification
+from app.services.openai_classifier import predict_classification_with_openai
 from app.services.knpm_labeller import classify_with_knpm
 from app.services.reference_catalog_db import (
     lookup_product_classification_db,
@@ -378,7 +381,7 @@ def _parse_product_info(data: dict) -> ProductInfo | None:
     visual_product_type = _optional_str(product_dict.get("visual_product_type"))
 
     return ProductInfo(
-        name=name or visual_product_type,
+        name=name,
         brand=_optional_str(product_dict.get("brand")),
         category=_optional_str(product_dict.get("category")),
         visual_product_type=visual_product_type,
@@ -468,11 +471,86 @@ def parse_extracted_data(extracted_data: ExtractedData) -> ParsedData:
     )
 
 
+def classify_product_runtime(
+    product_info: ProductInfo | None,
+    db: Session | None,
+    *,
+    ingredients: list[Ingredient] | None = None,
+    nutrition: NutritionData | None = None,
+    visual_labels: list[str] | None = None,
+) -> ClassifierPrediction | None:
+    """Run the runtime classifier (OpenAI only).
+
+    The extra keyword-only parameters supply additional label evidence so the
+    classifier can disambiguate products whose name alone is unclear
+    (e.g. brand-only names like ``Orchid Valley Delight`` resolved via
+    ingredients/visual labels). BiLSTM is intentionally NOT used as a runtime
+    fallback (its code remains in the repo for possible future use).
+    """
+    if product_info is None:
+        return None
+    if not settings.openai_classifier_enabled:
+        return None
+    try:
+        return predict_classification_with_openai(
+            product_info.name,
+            product_info.brand,
+            db=db,
+            ingredients=ingredients,
+            nutrition=nutrition,
+            visual_labels=visual_labels,
+            visual_product_type=product_info.visual_product_type,
+        )
+    except Exception:
+        logger.exception("OpenAI classifier raised; returning no classification")
+        return None
+
+
+def merge_classifier_with_classification(
+    classification: ProductClassification | None,
+    pred: ClassifierPrediction | None,
+) -> ProductClassification | None:
+    """Strong DB catalog match wins; otherwise adopt the OpenAI classifier prediction.
+
+    A prediction with no labels at all (e.g. "model declined" / "API error") is
+    informational only and does not become the resolved ``product_classification``.
+    """
+    if pred is None:
+        return classification
+    if classification is not None and is_strong_catalog_classification(classification):
+        return classification
+    if not (pred.class_name or pred.subclass_name or pred.nova):
+        return classification
+    method = (
+        "openai_product_name_no_classification"
+        if classification is None
+        else "openai_product_name_weak_fallback"
+    )
+    return ProductClassification(
+        class_name=pred.class_name,
+        subclass_name=pred.subclass_name,
+        nova=pred.nova,
+        matched_description=(
+            classification.matched_description if classification is not None else None
+        ),
+        match_method=method,
+        match_score=None,
+    )
+
+
 def resolve_nutrition_data(
     parsed_data: ParsedData,
     db: Session | None,
 ) -> NutritionResolution:
-    """Resolve nutrition from label first, then product DB."""
+    """Resolve nutrition with three-step fallback:
+    
+    1. Image label (if usable parsed nutrition is on the label)
+    2. PRIMARY catalog.product_nutrition (exact, then fuzzy name match)
+    3. SECONDARY catalog.food_composition_reference (only when primary completely missed)
+    
+    The ``nutrition_source`` is set to the schema.table identifier so the UI can
+    distinguish between a primary product hit and a secondary fallback.
+    """
     nutrition_data = parsed_data.nutrition
     product_nutrition_match = None
     nutrition_source = "unavailable"
@@ -492,7 +570,11 @@ def resolve_nutrition_data(
                 sub_type=db_meta.sub_type,
                 form=db_meta.form,
             )
-            nutrition_source = settings.reference_catalog_source_label
+            method = (db_meta.match_method or "").lower()
+            if method.startswith("reference_"):
+                nutrition_source = settings.food_composition_reference_source_label
+            else:
+                nutrition_source = settings.reference_catalog_source_label
 
     return NutritionResolution(
         nutrition_data=nutrition_data,
@@ -755,6 +837,7 @@ async def _process_food_product_with_db(
         )
 
     has_readable_text = bool(raw_text_value and raw_text_value.strip())
+    has_product_name = bool(product_info and bool((product_info.name or "").strip()))
     has_name_or_brand = bool(
         product_info
         and (
@@ -762,7 +845,12 @@ async def _process_food_product_with_db(
             or bool((product_info.brand or "").strip())
         )
     )
-    skip_reference_lookup = (not has_readable_text) or (not has_name_or_brand)
+    nutrition_only_without_name = is_usable_nutrition(label_nutrition) and (not has_product_name)
+    skip_reference_lookup = (
+        (not has_readable_text)
+        or (not has_name_or_brand)
+        or nutrition_only_without_name
+    )
 
     if skip_reference_lookup:
         nutrition_resolution = NutritionResolution(
@@ -775,9 +863,16 @@ async def _process_food_product_with_db(
         nutrition_resolution = resolve_nutrition_data(parsed_data, db)
     nutrition_data = nutrition_resolution.nutrition_data
     product_nutrition_match = nutrition_resolution.product_nutrition_match
-    nutrition_from_product_db = (
+    nutrition_from_primary_db = (
         nutrition_resolution.nutrition_source
         == settings.reference_catalog_source_label
+    )
+    nutrition_from_reference_fallback = (
+        nutrition_resolution.nutrition_source
+        == settings.food_composition_reference_source_label
+    )
+    nutrition_from_product_db = (
+        nutrition_from_primary_db or nutrition_from_reference_fallback
     )
     no_usable_nutrition_and_no_db_match = (
         not is_usable_nutrition(label_nutrition)
@@ -796,10 +891,16 @@ async def _process_food_product_with_db(
         warnings.append("Nutrition facts table not found in image")
     if nutrition_resolution.lookup_error:
         errors.append(nutrition_resolution.lookup_error)
-    if nutrition_from_product_db:
+    if nutrition_from_primary_db:
         warnings.append(
-            "Nutrition per 100 g/ml was filled from the reference nutrition lookup table "
+            "Nutrition per 100 g/ml was filled from the primary product nutrition table "
             "because parsed label nutrition was unavailable."
+        )
+    elif nutrition_from_reference_fallback:
+        warnings.append(
+            "Nutrition per 100 g/ml was filled from the secondary food composition "
+            "reference table (no match in the primary product table). Sugar may be "
+            "unavailable from this source."
         )
 
     if not is_usable_nutrition(nutrition_data):
@@ -807,6 +908,12 @@ async def _process_food_product_with_db(
 
     if not extraction_metadata.product_name_found:
         warnings.append("Product name not found in image")
+    if nutrition_only_without_name:
+        warnings.append(
+            "Usable nutrition was found, but product name was not visible. "
+            "KNPM was computed from the label nutrition only; reference lookup and model "
+            "classification were skipped."
+        )
     if skip_reference_lookup:
         if not has_readable_text:
             errors.append(
@@ -818,8 +925,7 @@ async def _process_food_product_with_db(
             )
     if no_usable_nutrition_and_no_db_match:
         errors.append(
-            "No usable nutrients were found from the label and no reference nutrition match was found. "
-            "Model classification was skipped."
+            "No usable nutrients were found from the label and no reference nutrition match was found."
         )
 
     # If both ingredients and usable nutrition are missing, add error
@@ -845,20 +951,33 @@ async def _process_food_product_with_db(
         if has_sweeteners:
             warnings.append("Artificial sweeteners detected in ingredients list")
 
-    # Taxonomy from the same reference table as nutrition; BiLSTM only when lookup is null or weak.
+    # Taxonomy is independent of nutrition availability: as long as we have a
+    # product name/brand we classify the item. The catalog lookup is the cheap
+    # first pass; OpenAI runs only when the catalog match is null or weak.
+    # BiLSTM is intentionally not used at runtime.
     product_classification = None
-    foodclasses_bilstm_prediction = None
-    if not skip_reference_lookup and not no_usable_nutrition_and_no_db_match:
+    classifier_prediction: ClassifierPrediction | None = None
+    if not skip_reference_lookup:
         product_classification = lookup_product_classification_db(product_info, db)
-        if settings.foodclasses_bilstm_enabled and product_info is not None:
-            if not is_strong_catalog_classification(product_classification):
-                foodclasses_bilstm_prediction = predict_foodclasses_from_product_text(
-                    product_info.name,
-                    product_info.brand,
-                )
-            product_classification = merge_foodclasses_with_classification(
-                product_classification,
-                foodclasses_bilstm_prediction,
+        if product_info is not None and not is_strong_catalog_classification(
+            product_classification
+        ):
+            classifier_prediction = classify_product_runtime(
+                product_info,
+                db,
+                ingredients=ingredients,
+                nutrition=nutrition_data,
+                visual_labels=extracted_data.visual_labels,
+            )
+        product_classification = merge_classifier_with_classification(
+            product_classification,
+            classifier_prediction,
+        )
+        if classifier_prediction is not None and classifier_prediction.needs_review:
+            warnings.append(
+                f"Classifier flagged needs_review (confidence "
+                f"{classifier_prediction.confidence or '-'}/5). "
+                f"Verify class/subclass before trusting."
             )
 
     knpm_label = classify_with_knpm(
@@ -874,10 +993,8 @@ async def _process_food_product_with_db(
     model_raw: dict[str, Any] = {"output": extracted_data.raw_response_text}
     if product_nutrition_match is not None:
         model_raw["product_nutrition_match"] = product_nutrition_match.model_dump()
-    if foodclasses_bilstm_prediction is not None:
-        model_raw["foodclasses_bilstm_prediction"] = (
-            foodclasses_bilstm_prediction.model_dump()
-        )
+    if classifier_prediction is not None:
+        model_raw["classifier_prediction"] = classifier_prediction.model_dump()
 
     result = OcrResult(
         ingredients=ingredients,
@@ -896,7 +1013,7 @@ async def _process_food_product_with_db(
         nutrition_source=nutrition_resolution.nutrition_source,
         product_nutrition_match=product_nutrition_match,
         product_classification=product_classification,
-        foodclasses_bilstm_prediction=foodclasses_bilstm_prediction,
+        classifier_prediction=classifier_prediction,
     )
     return await attach_healthier_recommendations(
         result,

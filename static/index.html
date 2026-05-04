@@ -384,6 +384,79 @@
     .stack-gap-sm { margin-top: 0.75rem; }
     .stack-gap-md { margin-top: 1rem; }
     .stack-gap-xs { margin-top: 0.5rem; }
+
+    /* Nutrition source badge: clear visual distinction between sources */
+    .source-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 0.4rem 0.75rem;
+      border-radius: 999px;
+      border: 2px solid var(--border-subtle);
+      background: var(--surface-muted);
+      color: var(--text-secondary);
+      letter-spacing: 0.01em;
+    }
+    .source-badge .dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+      background: currentColor;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .source-badge.src-image {
+      color: var(--ok);
+      background: var(--ok-bg);
+      border-color: #15803d;
+    }
+    .source-badge.src-primary {
+      color: #1e3a8a;
+      background: #dbeafe;
+      border-color: #3b82f6;
+    }
+    .source-badge.src-secondary {
+      color: var(--warn-text);
+      background: var(--warn-bg);
+      border-color: var(--warn-border);
+    }
+    .source-badge.src-unavailable {
+      color: var(--text-secondary);
+      background: var(--surface-muted);
+      border-color: var(--border-subtle);
+    }
+    .source-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 0.75rem;
+    }
+    /* The [hidden] HTML attribute should always win over our CSS display rules.
+       Without this, .source-row { display: flex } overrides the browser default
+       display:none for [hidden], so the badge row stays visible even when JS
+       sets hidden=true (the bug that caused stale "—  conf —/5  Needs review
+       Cached" badges to appear when no classifier ran). */
+    [hidden] {
+      display: none !important;
+    }
+    .source-note {
+      font-size: 0.8125rem;
+      color: var(--warn-text);
+      background: var(--warn-bg);
+      border: 2px solid var(--warn-border);
+      border-radius: 8px;
+      padding: 0.5rem 0.7rem;
+      margin: 0.5rem 0;
+      line-height: 1.45;
+    }
+    .nutrient-na {
+      color: var(--warn-text);
+      font-style: italic;
+      font-size: 0.875rem;
+    }
   </style>
 </head>
 <body>
@@ -415,6 +488,14 @@
         <div class="card wide" id="card-extraction">
           <h2>Extraction summary</h2>
           <p class="empty" id="extraction-empty">Run a scan to see flags and nutrition source.</p>
+          <div class="source-row" id="source-row" hidden>
+            <span class="hint" style="font-weight:700;">Nutrition source:</span>
+            <span id="source-badge" class="source-badge src-unavailable" role="status" aria-live="polite">
+              <span class="dot" aria-hidden="true"></span>
+              <span id="source-badge-label">—</span>
+            </span>
+          </div>
+          <div id="source-note" class="source-note" hidden></div>
           <dl class="meta" id="extraction-dl" hidden></dl>
         </div>
 
@@ -427,6 +508,7 @@
         <div class="card" id="card-nutrition">
           <h2>Nutrition (per 100g/ml)</h2>
           <p class="empty" id="nutrition-empty">—</p>
+          <div id="nutrition-note" class="source-note" hidden></div>
           <dl class="meta" id="nutrition-dl" hidden></dl>
         </div>
 
@@ -449,10 +531,29 @@
           <dl class="meta" id="taxonomy-dl" hidden></dl>
         </div>
 
-        <div class="card" id="card-bilstm">
-          <h2>Foodclasses BiLSTM</h2>
-          <p class="empty" id="bilstm-empty">No prediction (disabled, strong DB match, or missing model)</p>
-          <dl class="meta" id="bilstm-dl" hidden></dl>
+        <div class="card" id="card-classifier">
+          <h2>Runtime classifier</h2>
+          <p class="empty" id="classifier-empty">No classifier ran — strong catalog match used as-is, or no product name/brand available.</p>
+          <div class="source-row" id="classifier-row" hidden>
+            <span class="source-badge src-unavailable" id="classifier-source-badge">
+              <span class="dot" aria-hidden="true"></span>
+              <span id="classifier-source-label">—</span>
+            </span>
+            <span class="source-badge src-unavailable" id="classifier-confidence-badge" title="Self-reported model confidence">
+              <span class="dot" aria-hidden="true"></span>
+              <span id="classifier-confidence-label">conf —/5</span>
+            </span>
+            <span class="source-badge" id="classifier-review-badge" hidden>
+              <span class="dot" aria-hidden="true"></span>
+              <span>Needs review</span>
+            </span>
+            <span class="source-badge src-image" id="classifier-cache-badge" hidden title="Served from catalog.classification_cache - no LLM call">
+              <span class="dot" aria-hidden="true"></span>
+              <span>Cached</span>
+            </span>
+          </div>
+          <div class="source-note" id="classifier-note" hidden></div>
+          <dl class="meta" id="classifier-dl" hidden></dl>
         </div>
 
         <div class="card wide" id="card-subs">
@@ -534,12 +635,68 @@
         if (emptyEl) emptyEl.hidden = any;
       }
 
+      /**
+       * Classify nutrition_source string into a UI bucket so we can pick a badge color/label
+       * and decide whether to show the "sugar may be missing" caveat.
+       *
+       * Buckets:
+       *   image        -> green   (parsed directly from label)
+       *   primary      -> blue    (catalog.product_nutrition retail SKU hit)
+       *   secondary    -> amber   (catalog.food_composition_reference fallback - no sugar)
+       *   unavailable  -> grey    (no source)
+       */
+      function classifyNutritionSource(src) {
+        const s = String(src || "").toLowerCase();
+        if (s === "image") {
+          return { bucket: "image", label: "Label (image)", description: "Read directly from the product label." };
+        }
+        if (s === "unavailable" || s === "") {
+          return { bucket: "unavailable", label: "Unavailable", description: "No nutrition source could be resolved." };
+        }
+        if (s.includes("food_composition_reference")) {
+          return {
+            bucket: "secondary",
+            label: "Reference fallback (" + src + ")",
+            description: "Primary product table had no match. Used the food composition reference as a fallback. Sugar may be missing from this source.",
+          };
+        }
+        if (s.includes("product_nutrition") || s.includes("catalog.")) {
+          return {
+            bucket: "primary",
+            label: "Primary catalog (" + src + ")",
+            description: "Matched a retail SKU in the primary product nutrition table.",
+          };
+        }
+        return { bucket: "unavailable", label: src || "Unknown", description: "Unknown nutrition source." };
+      }
+
+      function renderSourceBadge(data) {
+        const row = $("source-row");
+        const badge = $("source-badge");
+        const labelEl = $("source-badge-label");
+        const note = $("source-note");
+        const info = classifyNutritionSource(data.nutrition_source);
+        row.hidden = false;
+        badge.className = "source-badge src-" + info.bucket;
+        labelEl.textContent = info.label;
+        if (info.bucket === "secondary") {
+          note.hidden = false;
+          note.textContent =
+            "Sugar may be unavailable: this scan was filled from the secondary food composition reference table " +
+            "because the primary product catalog had no match. Fat and sodium are reference averages.";
+        } else {
+          note.hidden = true;
+          note.textContent = "";
+        }
+      }
+
       function renderExtraction(data) {
         const em = data.extraction_metadata || {};
         const dl = $("extraction-dl");
         const empty = $("extraction-empty");
         const vl = data.visual_labels;
         const vlStr = Array.isArray(vl) && vl.length ? vl.join("; ") : null;
+        renderSourceBadge(data);
         showDl(dl, [
           ["ingredients_found", em.ingredients_found],
           ["nutrition_facts_found", em.nutrition_facts_found],
@@ -577,18 +734,58 @@
         const n = data.nutrition_per_100g;
         const empty = $("nutrition-empty");
         const dl = $("nutrition-dl");
+        const note = $("nutrition-note");
+        const info = classifyNutritionSource(data.nutrition_source);
+        const isSecondary = info.bucket === "secondary";
+
         if (!n) {
           empty.textContent = "No nutrition_per_100g";
           empty.hidden = false;
           dl.hidden = true;
+          note.hidden = true;
           return;
         }
-        showDl(dl, [
+
+        // For values null'd by the secondary fallback (esp. sugar), show a labeled n/a
+        // instead of the generic em-dash so it's clear WHY the value is missing.
+        const naLabel = isSecondary
+          ? "n/a (not in reference table)"
+          : "—";
+        const fmt = (v) => (v === undefined || v === null || v === "" ? naLabel : v);
+
+        // Build the dl manually so we can color the n/a entries when from secondary
+        dl.innerHTML = "";
+        const rows = [
           ["total_fat", n.total_fat],
           ["trans_fat", n.trans_fat],
           ["total_sugar", n.total_sugar],
           ["sodium", n.sodium],
-        ], empty);
+        ];
+        rows.forEach(([k, v]) => {
+          const dt = document.createElement("dt");
+          dt.textContent = k;
+          const dd = document.createElement("dd");
+          if (v === undefined || v === null || v === "") {
+            dd.textContent = naLabel;
+            if (isSecondary) dd.className = "nutrient-na";
+          } else {
+            dd.textContent = String(v);
+          }
+          dl.appendChild(dt);
+          dl.appendChild(dd);
+        });
+        dl.hidden = false;
+        empty.hidden = true;
+
+        if (isSecondary) {
+          note.hidden = false;
+          note.textContent =
+            "These values came from the secondary food composition reference, " +
+            "not from this specific product. Sugar is typically n/a from this source.";
+        } else {
+          note.hidden = true;
+          note.textContent = "";
+        }
       }
 
       function renderIngredients(data) {
@@ -697,23 +894,88 @@
         ], empty);
       }
 
-      function renderBilstm(fc) {
-        const empty = $("bilstm-empty");
-        const dl = $("bilstm-dl");
-        if (!fc) {
-          empty.textContent = "No foodclasses_bilstm_prediction";
+      /**
+       * Render the runtime classifier (OpenAI) card.
+       *   openai  -> blue badge ("OpenAI gpt-4o")
+       *   cache   -> blue badge ("Cached prediction")
+       *   manual  -> green badge ("Manual override")
+       * Confidence is mapped to a colored pill (5=green, 3-4=blue, <=2=amber).
+       * needs_review and cached are shown as separate pills when applicable.
+       */
+      function renderClassifier(cp) {
+        const empty = $("classifier-empty");
+        const row = $("classifier-row");
+        const note = $("classifier-note");
+        const dl = $("classifier-dl");
+        const srcBadge = $("classifier-source-badge");
+        const srcLabel = $("classifier-source-label");
+        const confBadge = $("classifier-confidence-badge");
+        const confLabel = $("classifier-confidence-label");
+        const reviewBadge = $("classifier-review-badge");
+        const cacheBadge = $("classifier-cache-badge");
+
+        if (!cp) {
           empty.hidden = false;
+          row.hidden = true;
+          note.hidden = true;
           dl.hidden = true;
           return;
         }
+        empty.hidden = true;
+        row.hidden = false;
+
+        const src = String(cp.source || "").toLowerCase();
+        let srcCls = "src-unavailable";
+        let srcText = src || "—";
+        if (src === "openai" || src === "cache") {
+          srcCls = "src-primary";
+          srcText = src === "cache" ? "Cached prediction" : "OpenAI";
+        } else if (src === "manual") {
+          srcCls = "src-image";
+          srcText = "Manual override";
+        }
+        if (cp.model_used) srcText += " · " + cp.model_used;
+        srcBadge.className = "source-badge " + srcCls;
+        srcLabel.textContent = srcText;
+
+        const conf = cp.confidence;
+        let confCls = "src-unavailable";
+        if (conf === 5) confCls = "src-image";
+        else if (conf === 4 || conf === 3) confCls = "src-primary";
+        else if (conf === 2 || conf === 1) confCls = "src-secondary";
+        confBadge.className = "source-badge " + confCls;
+        confLabel.textContent = "conf " + (conf == null ? "—" : conf) + "/5";
+
+        if (cp.needs_review) {
+          reviewBadge.hidden = false;
+          reviewBadge.className = "source-badge src-secondary";
+        } else {
+          reviewBadge.hidden = true;
+        }
+
+        if (cp.cached) {
+          cacheBadge.hidden = false;
+        } else {
+          cacheBadge.hidden = true;
+        }
+
+        const hasAnyLabel = !!(cp.class_name || cp.subclass_name || cp.nova);
+        if (!hasAnyLabel) {
+          note.textContent =
+            "OpenAI returned no labels for this product." +
+            (cp.reason ? " Reason: " + cp.reason : "");
+          note.hidden = false;
+        } else {
+          note.hidden = true;
+        }
+
         showDl(dl, [
-          ["class_name", fc.class_name],
-          ["subclass_name", fc.subclass_name],
-          ["nova_label", fc.nova_label],
-          ["class_confidence", fc.class_confidence],
-          ["subclass_confidence", fc.subclass_confidence],
-          ["nova_confidence", fc.nova_confidence],
-        ], empty);
+          ["class_name", cp.class_name],
+          ["subclass_name", cp.subclass_name],
+          ["nova", cp.nova],
+          ["reason", cp.reason],
+          ["input_text", cp.input_text],
+        ], null);
       }
 
       function renderHealthierSubstitutes(hs) {
@@ -873,7 +1135,7 @@
         renderIngredients(data);
         renderKnpm(data.knpm_label);
         renderTaxonomy(data.product_classification);
-        renderBilstm(data.foodclasses_bilstm_prediction);
+        renderClassifier(data.classifier_prediction);
         renderHealthierSubstitutes(data.healthier_substitutes);
         renderRefMatch(data.product_nutrition_match);
         renderWarnErr(data);

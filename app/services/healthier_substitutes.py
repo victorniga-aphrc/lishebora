@@ -2,7 +2,7 @@
 Healthier product substitutes: tiered PostgreSQL catalog search + KNPM ranking.
 
 Tiers (based on taxonomy fields already stored in
-``catalog.reference_products``):
+``catalog.product_nutrition``):
 
 - **Tier 1**: same ``subclass_name`` as the scan.
 - **Tier 2**: same ``class_name``, different subclass (or Tier 1 empty).
@@ -26,7 +26,7 @@ import logging
 from dataclasses import dataclass
 from app.config import settings
 from app.models import (
-    FoodclassesBiLstmPrediction,
+    ClassifierPrediction,
     HealthierSubstituteResult,
     KnpmLabel,
     NutritionData,
@@ -65,12 +65,12 @@ _catalog_cache: dict[tuple[str, str], list[_Cand]] = {}
 
 def _scan_class_subclass(ocr: OcrResult) -> tuple[str | None, str | None]:
     c, s = ocr.class_name, ocr.subclass_name
-    fc: FoodclassesBiLstmPrediction | None = ocr.foodclasses_bilstm_prediction
-    if fc is not None:
-        if not c and fc.class_name:
-            c = fc.class_name
-        if not s and fc.subclass_name:
-            s = fc.subclass_name
+    cp: ClassifierPrediction | None = ocr.classifier_prediction
+    if cp is not None:
+        if not c and cp.class_name:
+            c = cp.class_name
+        if not s and cp.subclass_name:
+            s = cp.subclass_name
     return c, s
 
 
@@ -194,7 +194,7 @@ def build_healthier_substitutes(
         logger.exception("Failed to build substitute catalog")
         return HealthierSubstituteResult(
             triggered=True,
-            skip_reason="Catalog load failed — check PostgreSQL catalog.reference_products (see REFERENCE_CATALOG_* env).",
+            skip_reason="Catalog load failed — check PostgreSQL catalog.product_nutrition (see REFERENCE_CATALOG_* env).",
             exceeded_nutrient_summary=_exceeded_tags(knpm),
         )
 

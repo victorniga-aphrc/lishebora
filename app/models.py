@@ -225,8 +225,12 @@ class NutritionResolution(BaseModel):
     nutrition_source: str = Field(
         default="unavailable",
         description=(
-            "Source of resolved nutrition: image, "
-            "catalog.reference_products, or unavailable"
+            "Source of resolved nutrition. One of: "
+            "'image' (parsed from label), "
+            "'catalog.product_nutrition' (PRIMARY product table hit), "
+            "'catalog.food_composition_reference' (SECONDARY reference fallback when "
+            "the primary table had no match - sugar may be missing), "
+            "or 'unavailable'."
         ),
     )
     product_nutrition_match: ProductNutritionMatchMetadata | None = Field(
@@ -262,6 +266,52 @@ class FoodclassesBiLstmPrediction(BaseModel):
     nova_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     input_text: str = Field(
         ..., description="Product string passed to the model (e.g. brand + name)"
+    )
+
+
+class ClassifierPrediction(BaseModel):
+    """
+    Runtime classifier output. Produced by the OpenAI classifier
+    (``app.services.openai_classifier``) when a strong catalog match is unavailable.
+
+    Confidence is the model's self-reported 1-5 score (5 = definitely correct).
+    ``needs_review`` is set when confidence is below the configured review threshold
+    so the UI can highlight uncertain predictions.
+    """
+
+    class_name: str | None = Field(default=None, description="Predicted class_name label")
+    subclass_name: str | None = Field(
+        default=None, description="Predicted subclass_name label"
+    )
+    nova: str | None = Field(default=None, description="Predicted NOVA category")
+    confidence: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+        description="Self-reported confidence 1-5 (5 = definitely correct)",
+    )
+    needs_review: bool = Field(
+        default=False,
+        description="True when confidence is below the review threshold",
+    )
+    reason: str | None = Field(
+        default=None,
+        description="Short rationale from the model (e.g. the food noun it used)",
+    )
+    source: str = Field(
+        default="openai",
+        description="Which classifier produced this row: 'openai' | 'cache' | 'manual'",
+    )
+    model_used: str | None = Field(
+        default=None,
+        description="Model identifier (e.g. 'gpt-4o')",
+    )
+    cached: bool = Field(
+        default=False,
+        description="True when the prediction was served from catalog.classification_cache",
+    )
+    input_text: str = Field(
+        ..., description="Product string passed to the classifier (brand + name)"
     )
 
 
@@ -484,17 +534,27 @@ class OcrResult(BaseModel):
     nutrition_source: str = Field(
         default="unavailable",
         description=(
-            "Where nutrition_per_100g came from: image, "
-            "catalog.reference_products, or unavailable"
+            "Where nutrition_per_100g came from. One of: "
+            "'image' (parsed from label), "
+            "'catalog.product_nutrition' (PRIMARY retail SKU match), "
+            "'catalog.food_composition_reference' (SECONDARY fallback for generic foods; "
+            "sugar may be missing from this source), "
+            "or 'unavailable'."
         ),
     )
     product_nutrition_match: ProductNutritionMatchMetadata | None = Field(
         default=None,
-        description="Set when nutrition_per_100g was filled from catalog.reference_products",
+        description=(
+            "Set when nutrition_per_100g was filled from a DB lookup. The match_method "
+            "field distinguishes primary (db_*) from secondary (reference_*) sources."
+        ),
     )
-    foodclasses_bilstm_prediction: FoodclassesBiLstmPrediction | None = Field(
+    classifier_prediction: ClassifierPrediction | None = Field(
         default=None,
-        description="Class/subclass/NOVA from multi-head BiLSTM on product name",
+        description=(
+            "Active runtime classifier prediction (OpenAI). Includes self-reported "
+            "confidence (1-5), needs_review flag, and which model produced the result."
+        ),
     )
     healthier_substitutes: HealthierSubstituteResult | None = Field(
         default=None,

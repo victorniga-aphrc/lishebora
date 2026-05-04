@@ -30,19 +30,31 @@ class Settings:
         "postgresql://postgres@localhost:5432/lishebora",
     )
 
-    # Reference catalog (PostgreSQL schema + table; used by lookup_reference_nutrition_db, etc.)
+    # Catalog schema (shared by primary product table and secondary reference table).
     reference_catalog_schema: str = (
         os.getenv("REFERENCE_CATALOG_SCHEMA", "catalog").strip().lower()
     )
+
+    # PRIMARY: catalog.product_nutrition (3,973 retail SKUs with octagon_count).
+    # Write-through enabled (each successful scan upserts here).
     reference_catalog_products_table: str = (
-        os.getenv("REFERENCE_CATALOG_PRODUCTS_TABLE", "reference_products")
+        os.getenv("REFERENCE_CATALOG_PRODUCTS_TABLE", "product_nutrition")
+        .strip()
+        .lower()
+    )
+
+    # SECONDARY: catalog.food_composition_reference (654 standard food composition entries).
+    # Read-only TRUE fallback consulted only when the PRIMARY table cannot match the scanned
+    # product at all (no exact, no fuzzy hit). Has fat/sodium but no sugar.
+    food_composition_reference_table: str = (
+        os.getenv("FOOD_COMPOSITION_REFERENCE_TABLE", "food_composition_reference")
         .strip()
         .lower()
     )
 
     @property
     def reference_catalog_qualified_sql(self) -> str:
-        """Quoted schema.table for ``FROM`` / ``INTO`` in raw SQL."""
+        """Quoted schema.table for the PRIMARY product nutrition table."""
         return qualified_table(
             schema=self.reference_catalog_schema,
             table=self.reference_catalog_products_table,
@@ -56,6 +68,22 @@ class Settings:
             table=self.reference_catalog_products_table,
         )
 
+    @property
+    def food_composition_reference_qualified_sql(self) -> str:
+        """Quoted schema.table for the SECONDARY food composition reference table."""
+        return qualified_table(
+            schema=self.reference_catalog_schema,
+            table=self.food_composition_reference_table,
+        )
+
+    @property
+    def food_composition_reference_source_label(self) -> str:
+        """Human/API label for the secondary nutrient source."""
+        return dotted_name(
+            schema=self.reference_catalog_schema,
+            table=self.food_composition_reference_table,
+        )
+
     # Minimum SequenceMatcher score (0–100) for fuzzy name match vs catalog; exact normalized
     # name match is always used first and ignores this threshold.
     reference_catalog_fuzzy_min_score: float = float(
@@ -67,9 +95,42 @@ class Settings:
     knpm_sugar_threshold: float = float(os.getenv("KNPM_SUGAR_THRESHOLD", "4.7"))
     knpm_sodium_threshold: float = float(os.getenv("KNPM_SODIUM_THRESHOLD", "0.26"))
 
-    # Multi-head foodclasses BiLSTM (product name -> class/subclass/nova)
+    # === Runtime classifier (OpenAI only) ===
+    # OpenAI is the sole product classifier when the catalog match is weak.
+    # BiLSTM is intentionally NOT wired into the runtime; the model files and
+    # service code remain in the repo for possible future re-activation.
+    openai_classifier_enabled: bool = os.getenv(
+        "OPENAI_CLASSIFIER_ENABLED", "true"
+    ).lower() in ("1", "true", "yes", "on")
+    openai_classifier_model: str = os.getenv(
+        "OPENAI_CLASSIFIER_MODEL", "gpt-4o"
+    ).strip()
+    # Confidence (1-5) below which a prediction is flagged needs_review.
+    openai_classifier_review_threshold: int = int(
+        os.getenv("OPENAI_CLASSIFIER_REVIEW_THRESHOLD", "4")
+    )
+    # OpenAI request timeout (seconds). Keep this tight on the hot path.
+    openai_classifier_timeout_s: float = float(
+        os.getenv("OPENAI_CLASSIFIER_TIMEOUT_S", "8.0")
+    )
+    # Cache table for OpenAI classifier results (catalog schema reused).
+    classification_cache_table: str = (
+        os.getenv("CLASSIFICATION_CACHE_TABLE", "classification_cache")
+        .strip()
+        .lower()
+    )
+
+    @property
+    def classification_cache_qualified_sql(self) -> str:
+        return qualified_table(
+            schema=self.reference_catalog_schema,
+            table=self.classification_cache_table,
+        )
+
+    # BiLSTM legacy settings: kept only because foodclasses_bilstm_inference.py
+    # still reads them. Default to disabled so the BiLSTM model is never loaded.
     foodclasses_bilstm_enabled: bool = os.getenv(
-        "FOODCLASSES_BILSTM_ENABLED", "true"
+        "FOODCLASSES_BILSTM_ENABLED", "false"
     ).lower() in ("1", "true", "yes", "on")
     foodclasses_bilstm_model_pkl: Path = Path(
         os.getenv(

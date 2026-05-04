@@ -12,7 +12,8 @@ class ProductScanSummary(Base):
     """
     One relational row per successful ``/extract`` save (flat fields for reporting).
 
-    Reference catalog lives in ``catalog.reference_products`` (not modeled here; raw SQL).
+    Reference catalog lives in ``catalog.product_nutrition`` and
+    ``catalog.food_composition_reference`` (modeled in app.database.nutrition_models).
     """
 
     __tablename__ = "product_scan_summary"

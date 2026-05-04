@@ -64,7 +64,7 @@ async def extract(
 
     On success, one flat row is appended to PostgreSQL ``app.product_scan_summary``
     (name, brand, barcode, nutrients, taxonomy, NOVA, octagon count), and the same
-    extract is merged into ``catalog.reference_products`` when the DB is configured.
+    extract is merged into ``catalog.product_nutrition`` when the DB is configured.
     """
     if not image.content_type or not image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Only image files are accepted.")
@@ -77,17 +77,15 @@ async def extract(
             db=db,
         )
 
-        # Save to database only when there is readable text and a name/brand anchor.
+        # Save to database only when there is readable text and a product-name anchor.
         pi = result.product_info
         has_readable_text = bool((result.raw_text or "").strip())
-        has_name_or_brand = bool(
-            pi and (bool((pi.name or "").strip()) or bool((pi.brand or "").strip()))
-        )
+        has_product_name = bool(pi and bool((pi.name or "").strip()))
         no_usable_nutrition_and_no_db_match = (
             (not _has_usable_nutrition(result))
             and (result.product_nutrition_match is None)
         )
-        if has_readable_text and has_name_or_brand and not no_usable_nutrition_and_no_db_match:
+        if has_readable_text and has_product_name and not no_usable_nutrition_and_no_db_match:
             try:
                 save_ocr_result_to_db(
                     db=db,
