@@ -73,3 +73,6 @@ logs/
 data/huge_data.csv
 data/all_categories_combined.csv
 
+# Stored scan images (runtime user uploads; not versioned)
+data/scans/
+

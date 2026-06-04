@@ -1,7 +1,8 @@
 from pathlib import Path
+import logging
 
 from fastapi import Depends, FastAPI, File, Form, UploadFile, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -10,8 +11,15 @@ from pydantic import BaseModel
 from app.db import get_db
 from app.models import HealthierSubstituteResult, OcrResult
 from app.services.db_service import save_ocr_result_to_db
+from app.services.image_storage import get_image_storage
 from app.services.ocr_client import OcrClientError, process_food_product
 from app.services.recommendation_explainer import attach_healthier_recommendations
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -70,12 +78,34 @@ async def extract(
         raise HTTPException(status_code=400, detail="Only image files are accepted.")
 
     try:
+        logger.info(
+            "[extract] request started | filename=%s content_type=%s",
+            image.filename or "(unknown)",
+            image.content_type or "(unknown)",
+        )
         image_bytes = await image.read()
+        logger.info("[extract] image bytes read | size=%d", len(image_bytes))
+
+        # Persist every uploaded image (including non-food / failed scans) up front,
+        # so the originals are available later for OCR quality review. Storage failures
+        # must never break the scan itself.
+        stored_key: str | None = None
+        try:
+            stored_key = get_image_storage().save(image_bytes, image.content_type)
+            logger.info("[extract] image stored | key=%s", stored_key)
+        except Exception as store_exc:  # pragma: no cover - defensive
+            logger.warning("[extract] failed to store scan image: %s", store_exc)
+
         result = await process_food_product(
             image_bytes,
             user_goal=user_goal,
             db=db,
         )
+        logger.info("[extract] OCR pipeline completed")
+
+        if stored_key:
+            result.image_path = stored_key
+            result.image_url = get_image_storage().url_for(stored_key)
 
         # Save to database only when there is readable text and a product-name anchor.
         pi = result.product_info
@@ -87,18 +117,20 @@ async def extract(
         )
         if has_readable_text and has_product_name and not no_usable_nutrition_and_no_db_match:
             try:
+                logger.info("[extract] saving scan summary to DB")
                 save_ocr_result_to_db(
                     db=db,
                     ocr_result=result,
                     user_id=None,  # TODO: Add authentication
                     location=None,  # TODO: Extract from request if available
-                    image_path=None,  # TODO: Save image to storage if needed
+                    image_path=stored_key,
                 )
             except Exception as db_exc:
                 # Log database error but don't fail the request
                 # The OCR extraction was successful, so we still return the result
-                print(f"Warning: Failed to save to database: {db_exc}")
+                logger.warning("Failed to save scan summary to DB: %s", db_exc)
         
+        logger.info("[extract] request finished successfully")
         return result
     except OcrClientError as exc:
         code = getattr(exc, "status_code", 502)
@@ -126,6 +158,15 @@ async def recommend_substitutes(payload: SubstituteRecommendRequest) -> Healthie
             skip_reason="Substitute recommendations disabled.",
         )
     return hs
+
+
+@app.get("/scans/image/{key:path}")
+async def get_scan_image(key: str) -> FileResponse:
+    """Serve a stored scan image by its storage key (see ``OcrResult.image_url``)."""
+    path = get_image_storage().resolve(key)
+    if path is None or not path.is_file():
+        raise HTTPException(status_code=404, detail="Image not found.")
+    return FileResponse(path)
 
 
 @app.get("/health", response_class=JSONResponse)

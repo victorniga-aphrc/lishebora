@@ -697,11 +697,17 @@
         const vl = data.visual_labels;
         const vlStr = Array.isArray(vl) && vl.length ? vl.join("; ") : null;
         renderSourceBadge(data);
+        const byField =
+          em.confidence_by_field && typeof em.confidence_by_field === "object"
+            ? JSON.stringify(em.confidence_by_field)
+            : null;
         showDl(dl, [
           ["ingredients_found", em.ingredients_found],
           ["nutrition_facts_found", em.nutrition_facts_found],
           ["product_name_found", em.product_name_found],
           ["barcode_found", em.barcode_found],
+          ["overall_confidence", em.overall_confidence != null ? em.overall_confidence : null],
+          ["confidence_by_field", byField],
           ["nutrition_source", data.nutrition_source],
           ["visual_is_food", data.visual_is_food],
           ["visual_is_packaged_retail_food", data.visual_is_packaged_retail_food],

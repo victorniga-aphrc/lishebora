@@ -1,23 +1,13 @@
 """
-Healthier product substitutes: tiered PostgreSQL catalog search + KNPM ranking.
+Healthier product substitutes: Tier-1-only PostgreSQL catalog search + KNPM ranking.
 
-Tiers (based on taxonomy fields already stored in
-``catalog.product_nutrition``):
+Tier (based on taxonomy fields already stored in ``catalog.product_nutrition``):
 
 - **Tier 1**: same ``subclass_name`` as the scan.
-- **Tier 2**: same ``class_name``, different subclass (or Tier 1 empty).
-- **Tier 3**: full reference pool (still scored with the **scan's** KNPM category limits).
 
 Only catalog rows with **zero** KNPM octagons are eligible as substitutes; rows with any
 octagon are excluded. Ingredient-only flags are **not** applied to catalog rows (no
 ingredient list in the reference table).
-
-**Fill order:** take up to ``max`` substitutes from tier 1 (same subclass). If fewer than
-``min``, add from tier 2 (same class, excluding tier‑1 pool). If still short, add from
-tier 3 (rest of catalog). No skipping tier 1 when subclass matches are “unhealthy” only.
-
-This is **content-based** (item attributes + shared category limits). Co-purchase or
-matrix-factorization CF can reuse the same tier scaffold later.
 """
 
 from __future__ import annotations
@@ -183,7 +173,6 @@ def build_healthier_substitutes(
         return HealthierSubstituteResult(triggered=False, skip_reason=reason)
 
     max_n = max(1, min(20, int(settings.substitute_max_results)))
-    min_n = max(1, min(max_n, int(settings.substitute_min_results)))
 
     try:
         ck = _catalog_cache_key()
@@ -206,26 +195,17 @@ def build_healthier_substitutes(
             combo = f"{ocr.product_info.brand.strip()} {scan_name}".strip()
             exclude.add(normalize_pack_description(combo))
 
-    scan_c, scan_s = _scan_class_subclass(ocr)
-    nc, ns = _norm_taxon(scan_c), _norm_taxon(scan_s)
+    _, scan_s = _scan_class_subclass(ocr)
+    ns = _norm_taxon(scan_s)
 
     tier1: list[_Cand] = []
-    tier2: list[_Cand] = []
-    tier3: list[_Cand] = []
     for c in all_cands:
-        cc, ss = _norm_taxon(c.class_name), _norm_taxon(c.subclass_name)
+        ss = _norm_taxon(c.subclass_name)
         in_sub = bool(ns) and ss == ns
-        in_class = bool(nc) and cc == nc
         if in_sub:
             tier1.append(c)
-        elif in_class and (not ns or ss != ns):
-            tier2.append(c)
-        else:
-            tier3.append(c)
 
     tier1 = [c for c in tier1 if _zero_octagon_candidate(c)]
-    tier2 = [c for c in tier2 if _zero_octagon_candidate(c)]
-    tier3 = [c for c in tier3 if _zero_octagon_candidate(c)]
 
     chosen: list[tuple[int, _Cand]] = []
     seen_keys: set[str] = set()
@@ -241,12 +221,8 @@ def build_healthier_substitutes(
             seen_keys.add(k)
             chosen.append((tier_num, c))
 
-    # Strict taxonomy waterfall: subclass → class → full catalog (within max_n).
+    # Strict Tier-1-only selection: same subclass only.
     _add_from_pool(1, tier1)
-    if len(chosen) < min_n:
-        _add_from_pool(2, tier2)
-    if len(chosen) < min_n:
-        _add_from_pool(3, tier3)
 
     chosen = chosen[:max_n]
 
@@ -254,12 +230,11 @@ def build_healthier_substitutes(
         return HealthierSubstituteResult(
             triggered=True,
             exceeded_nutrient_summary=_exceeded_tags(knpm),
-            tier_used=3,
+            tier_used=1,
             no_close_substitutes=True,
             substitutes=[],
             skip_reason=(
-                "No reference products with zero KNPM octagons were found in the PostgreSQL "
-                "reference table for this taxonomy search."
+                "We could not find healthier options for this type of product in our food list."
             ),
         )
 
@@ -279,12 +254,12 @@ def build_healthier_substitutes(
         for tier_num, c in chosen
     ]
 
-    no_close = tier_used > 1 or (not any(s.below_knpm_thresholds for s in subs))
+    no_close = not any(s.below_knpm_thresholds for s in subs)
 
     approach = (
         "Substitutes are limited to reference rows with zero KNPM octagons. "
-        "Order: same subclass, then same class, then full catalog; within each tier, "
-        "sort by healthy profile then name."
+        "Only same-subclass (Tier 1) candidates are considered, sorted by healthy profile "
+        "then name."
     )
 
     return HealthierSubstituteResult(
@@ -325,7 +300,8 @@ def template_explanation(ocr: OcrResult, result: HealthierSubstituteResult) -> s
                 "Listed alternatives have no black octagons on their reference nutrition rows."
             )
     if result.no_close_substitutes:
-        parts.append(
-            "We widened the search beyond your exact retail sub-category because no close below-threshold matches were found."
-        )
+        if result.substitutes:
+            parts.append("No clearly healthier options were found among the closest matching products.")
+        else:
+            parts.append("No healthier alternatives were found for this product category in our reference data.")
     return " ".join(parts) if parts else "See substitute list for reference products with better KNPM profiles."

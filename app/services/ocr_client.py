@@ -325,6 +325,32 @@ def _coerce_confidence_map(value: Any) -> dict[str, float]:
     return out
 
 
+def _coerce_unit_interval(value: Any) -> float | None:
+    """Normalize model confidence to 0..1 (accepts 0..100 as percent)."""
+    if value is None:
+        return None
+    try:
+        x = float(value)
+    except (TypeError, ValueError):
+        return None
+    if x > 1.0 and x <= 100.0:
+        x = x / 100.0
+    if x < 0.0 or x > 1.0:
+        return None
+    return x
+
+
+def _coerce_field_confidence_map(value: Any) -> dict[str, float]:
+    if not isinstance(value, dict):
+        return {}
+    out: dict[str, float] = {}
+    for key, raw in value.items():
+        c = _coerce_unit_interval(raw)
+        if c is not None:
+            out[str(key)] = c
+    return out
+
+
 def _build_extracted_data(
     text_response: str,
     parsed_json: dict[str, Any] | None,
@@ -599,6 +625,7 @@ async def process_food_image(
     """
     if not image_bytes:
         raise OcrClientError("Empty image payload", status_code=400)
+    logger.info("[ocr] step=vision:start bytes=%d model=%s", len(image_bytes), settings.openai_model)
 
     if not settings.openai_api_key:
         logger.error("process_food_image: OPENAI_API_KEY is not set")
@@ -636,7 +663,11 @@ async def process_food_image(
         '   - \"detected_logos\": array of strings (brand or logo hints)\n'
         '   - \"visual_analysis\": object with keys: is_food, is_packaged_retail_food, labels, confidence, notes\n'
         '   - \"extraction_metadata\": object with boolean keys: ingredients_found, '
-        'nutrition_facts_found, product_name_found, barcode_found\n\n'
+        'nutrition_facts_found, product_name_found, barcode_found; plus numeric keys: '
+        'overall_confidence (number 0.0–1.0, how confident you are in the whole extraction '
+        'for this image), and confidence_by_field (object mapping optional keys '
+        'ingredients, nutrition_facts, product_name, barcode to numbers 0.0–1.0 for each '
+        'section you extracted or attempted)\n\n'
         "IMPORTANT:\n"
         "- Extract only these nutrition keys: total_fat, trans_fat, total_sugar, sodium\n"
         "- For each key above: use null ONLY if that nutrient is NOT in the image\n"
@@ -651,6 +682,10 @@ async def process_food_image(
         "restaurant plates, home-cooked meals, or unpackaged ingredients). Use null only if you truly cannot tell.\n"
         "- If a section is not visible, set the corresponding field to null or empty array\n"
         "- Set extraction_metadata flags to true only if you actually found that information\n"
+        "- Set extraction_metadata.overall_confidence to your honest 0.0–1.0 confidence in "
+        "text/nutrition/barcode extraction (blur, glare, occlusion, or ambiguous layout → lower values)\n"
+        "- Set extraction_metadata.confidence_by_field with 0.0–1.0 per key only for sections "
+        "you considered; omit keys for sections not visible in the image\n"
         "- Return ONLY JSON, no explanations or commentary"
     )
 
@@ -696,6 +731,7 @@ async def process_food_image(
 
     try:
         text_response = await _run_openai()
+        logger.info("[ocr] step=vision:completed chars=%d", len(text_response or ""))
     except Exception as exc:  # pragma: no cover - defensive
         raise _openai_api_failure(exc) from exc
 
@@ -710,7 +746,9 @@ async def process_food_image(
 
     try:
         parsed = json.loads(cleaned_response)
+        logger.info("[ocr] step=parse:json_ok")
     except json.JSONDecodeError:
+        logger.warning("[ocr] step=parse:json_failed")
         return _build_extracted_data(
             text_response=text_response,
             parsed_json=None,
@@ -749,10 +787,12 @@ async def _process_food_product_with_db(
     user_goal: str | None,
     db: Session | None,
 ) -> OcrResult:
+    logger.info("[pipeline] step=1/7 extract_vision")
     extracted_data = await process_food_image(
         image_bytes=image_bytes,
     )
     if extracted_data.parsed_json is None:
+        logger.warning("[pipeline] vision output unparseable; returning parse_error response")
         return OcrResult(
             ingredients=[],
             nutrition_per_100g=None,
@@ -767,12 +807,15 @@ async def _process_food_product_with_db(
                 nutrition_facts_found=False,
                 product_name_found=False,
                 barcode_found=False,
+                overall_confidence=None,
+                confidence_by_field={},
             ),
             warnings=[],
             errors=[extracted_data.parse_error or "Failed to parse model response"],
             model_raw_output={"output": extracted_data.raw_response_text},
         )
 
+    logger.info("[pipeline] step=2/7 parse_structured_output")
     parsed_data = parse_extracted_data(extracted_data)
     parsed = extracted_data.parsed_json
     ingredients = parsed_data.ingredients
@@ -780,6 +823,8 @@ async def _process_food_product_with_db(
     product_info = parsed_data.product_info
 
     metadata_dict = parsed.get("extraction_metadata", {})
+    if not isinstance(metadata_dict, dict):
+        metadata_dict = {}
     label_nutrition_present = label_nutrition is not None
     extraction_metadata = ExtractionMetadata(
         ingredients_found=metadata_dict.get("ingredients_found", len(ingredients) > 0),
@@ -794,11 +839,16 @@ async def _process_food_product_with_db(
             "barcode_found",
             product_info is not None and product_info.barcode is not None,
         ),
+        overall_confidence=_coerce_unit_interval(metadata_dict.get("overall_confidence")),
+        confidence_by_field=_coerce_field_confidence_map(
+            metadata_dict.get("confidence_by_field")
+        ),
     )
 
     raw_text_value = parsed.get("raw_text") if isinstance(parsed.get("raw_text"), str) else None
 
     if extracted_data.visual_is_food is False:
+        logger.info("[pipeline] early_exit non-food image")
         return OcrResult(
             ingredients=ingredients,
             nutrition_per_100g=None,
@@ -816,6 +866,7 @@ async def _process_food_product_with_db(
         )
 
     if extracted_data.visual_is_packaged_retail_food is False:
+        logger.info("[pipeline] early_exit non-packaged product")
         return OcrResult(
             ingredients=ingredients,
             nutrition_per_100g=None,
@@ -853,6 +904,7 @@ async def _process_food_product_with_db(
     )
 
     if skip_reference_lookup:
+        logger.info("[pipeline] step=3/7 nutrition_lookup skipped (insufficient name/text)")
         nutrition_resolution = NutritionResolution(
             nutrition_data=label_nutrition if is_usable_nutrition(label_nutrition) else None,
             nutrition_source="image" if is_usable_nutrition(label_nutrition) else "unavailable",
@@ -860,6 +912,7 @@ async def _process_food_product_with_db(
             lookup_error=None,
         )
     else:
+        logger.info("[pipeline] step=3/7 nutrition_lookup running")
         nutrition_resolution = resolve_nutrition_data(parsed_data, db)
     nutrition_data = nutrition_resolution.nutrition_data
     product_nutrition_match = nutrition_resolution.product_nutrition_match
@@ -958,10 +1011,12 @@ async def _process_food_product_with_db(
     product_classification = None
     classifier_prediction: ClassifierPrediction | None = None
     if not skip_reference_lookup:
+        logger.info("[pipeline] step=4/7 catalog_classification_lookup running")
         product_classification = lookup_product_classification_db(product_info, db)
         if product_info is not None and not is_strong_catalog_classification(
             product_classification
         ):
+            logger.info("[pipeline] step=5/7 runtime_classifier_openai running")
             classifier_prediction = classify_product_runtime(
                 product_info,
                 db,
@@ -980,6 +1035,10 @@ async def _process_food_product_with_db(
                 f"Verify class/subclass before trusting."
             )
 
+    else:
+        logger.info("[pipeline] step=4-5/7 classification skipped (insufficient name/text)")
+
+    logger.info("[pipeline] step=6/7 knpm_labelling")
     knpm_label = classify_with_knpm(
         nutrition=nutrition_data,
         has_trans_fats=has_trans_fats if ingredients else False,
@@ -1015,6 +1074,7 @@ async def _process_food_product_with_db(
         product_classification=product_classification,
         classifier_prediction=classifier_prediction,
     )
+    logger.info("[pipeline] step=7/7 recommendations")
     return await attach_healthier_recommendations(
         result,
         has_trans_fats=has_trans_fats if ingredients else False,

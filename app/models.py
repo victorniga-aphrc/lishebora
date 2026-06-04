@@ -159,6 +159,22 @@ class ExtractionMetadata(BaseModel):
     barcode_found: bool = Field(
         default=False, description="Whether barcode was found"
     )
+    overall_confidence: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Vision model self-assessed confidence (0–1) in the overall OCR/extraction "
+            "for this image (readability, completeness, ambiguity)."
+        ),
+    )
+    confidence_by_field: dict[str, float] = Field(
+        default_factory=dict,
+        description=(
+            "Optional per-section confidence (0–1) from the vision model, e.g. "
+            "ingredients, nutrition_facts, product_name, barcode."
+        ),
+    )
 
 
 class ReferenceNutritionMatch(BaseModel):
@@ -508,6 +524,8 @@ class OcrResult(BaseModel):
             nutrition_facts_found=False,
             product_name_found=False,
             barcode_found=False,
+            overall_confidence=None,
+            confidence_by_field={},
         ),
         description="Metadata about what was successfully extracted",
     )
@@ -559,6 +577,20 @@ class OcrResult(BaseModel):
     healthier_substitutes: HealthierSubstituteResult | None = Field(
         default=None,
         description="Tiered healthier alternatives when the product is less healthy (KNPM)",
+    )
+    image_path: str | None = Field(
+        default=None,
+        description=(
+            "Storage key of the saved scan image (date-partitioned, e.g. "
+            "'2026/06/03/<uuid>.jpg'). Null when the image could not be stored."
+        ),
+    )
+    image_url: str | None = Field(
+        default=None,
+        description=(
+            "URL the client can use to fetch the stored scan image. Relative by default "
+            "(e.g. '/scans/image/2026/06/03/<uuid>.jpg'); prefix with the API host."
+        ),
     )
 
     @model_validator(mode="after")

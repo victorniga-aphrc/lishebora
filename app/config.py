@@ -172,6 +172,21 @@ class Settings:
         "SUBSTITUTE_EXPLANATION_ENABLED", "true"
     ).lower() in ("1", "true", "yes", "on")
 
+    # === Scan image storage ===
+    # Backend for persisting uploaded scan photos. Only "local" is implemented today;
+    # the abstraction leaves room for a self-hosted S3-compatible store (e.g. MinIO) later.
+    image_storage_backend: str = os.getenv("IMAGE_STORAGE_BACKEND", "local").strip().lower()
+    # Directory where local scan images are written (mounted as a Docker volume in prod).
+    image_storage_dir: Path = Path(
+        os.getenv("IMAGE_STORAGE_DIR", str(_REPO_ROOT / "data" / "scans"))
+    )
+    # Longest edge (px) for the stored, re-encoded image; bounds on-disk size.
+    image_storage_max_dim: int = int(os.getenv("IMAGE_STORAGE_MAX_DIM", "1600"))
+    # JPEG quality (1-95) for the stored image.
+    image_storage_jpeg_quality: int = int(os.getenv("IMAGE_STORAGE_JPEG_QUALITY", "85"))
+    # Public URL prefix the mobile app uses to fetch a stored image by key.
+    image_public_base_url: str = os.getenv("IMAGE_PUBLIC_BASE_URL", "/scans/image").rstrip("/")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
