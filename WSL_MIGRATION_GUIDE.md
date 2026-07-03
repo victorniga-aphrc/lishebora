@@ -6,6 +6,35 @@ Use this document when asking an LLM (or following steps yourself) to finish mov
 
 ---
 
+## CURRENT STATUS (read this first) — migration DONE
+
+The migration described below is **already complete**. Steps 1–3 are kept only as
+reference for how it was done. **Do not re-run them.** Here is the live state:
+
+- **WSL location (the only place to work):**
+  `~/projects/lishebora_vic` (i.e. `/home/guest566/projects/lishebora_vic`).
+  Do **not** edit, git, or `docker build` from `/mnt/d/aphrc/lishebora_vic` anymore.
+
+- **The ONLY active branch going forward:**
+  - Repo: **`damiancodes/lishebora-backend`** (Domian's mobile API backend)
+  - Folder: `~/projects/lishebora_vic/local/lishebora-backend-domian/lishebora-backend-master`
+  - Branch: **`feature/mobile-backend-updates`** ← all future commits go here, pushed, committed (`23e448b`).
+
+- **Main pipeline repo is FROZEN for now.** The root `victorniga-aphrc/lishebora`
+  branch **`feature/vic-pipeline-updates`** was pushed once and is **not** where ongoing
+  work happens. Leave it alone unless explicitly told otherwise.
+
+> **Go-forward rule for the LLM and the user:** work happens **only** on
+> `feature/mobile-backend-updates` inside Domian's backend folder in WSL.
+> No further changes to the main pipeline (`victorniga-aphrc/lishebora`) branch.
+
+| What | Repo | Branch | Where (WSL) |
+|------|------|--------|-------------|
+| **Active work** | `damiancodes/lishebora-backend` | `feature/mobile-backend-updates` | `~/projects/lishebora_vic/local/lishebora-backend-domian/lishebora-backend-master` |
+| Frozen (reference only) | `victorniga-aphrc/lishebora` | `feature/vic-pipeline-updates` | `~/projects/lishebora_vic` (root) |
+
+---
+
 ## What failed last time
 
 `cp -a /mnt/d/aphrc/lishebora_vic ~/projects/` ran for ~27 minutes then ended with:
@@ -252,14 +281,17 @@ Open the WSL folder, not `D:\APHRC\...`:
 
 ## Checklist for the LLM assistant
 
-When the user says “continue WSL migration”, verify:
+Migration is done. For any new work, the rules are:
 
-1. [ ] `~/projects/lishebora_vic` exists and `local/.../lishebora-backend-master` has recent edits
-2. [ ] `git status` works in root repo; Domian folder has `git init` + `origin` → damiancodes
-3. [ ] Branch `feature/mobile-backend-updates` (or user’s name) pushed to damiancodes
-4. [ ] `.env` never committed; secrets only in local `.env`
-5. [ ] Docker rebuilt from WSL path after migration
-6. [ ] User no longer builds from `/mnt/d/aphrc/...`
+1. [x] `~/projects/lishebora_vic` exists; Domian backend committed + pushed
+2. [x] Domian folder is a git repo, `origin` → `damiancodes/lishebora-backend`
+3. [x] Branch `feature/mobile-backend-updates` pushed to damiancodes (`23e448b`)
+4. [ ] **All ongoing work stays on `feature/mobile-backend-updates`** in
+       `~/projects/lishebora_vic/local/lishebora-backend-domian/lishebora-backend-master`
+5. [ ] **Do NOT commit to the main pipeline** (`victorniga-aphrc/lishebora` /
+       `feature/vic-pipeline-updates`) — it is frozen unless the user says otherwise
+6. [ ] `.env` never committed; secrets only in local `.env`
+7. [ ] Docker is rebuilt from the WSL path, never from `/mnt/d/aphrc/...`
 
 ---
 
